@@ -3,32 +3,22 @@ from discord.ext import commands
 import os
 from utils.db import DB
 
-class PartyRecruitmentModal(discord.ui.Modal, title="パーティー募集内容を入力！"):
-    date = discord.ui.TextInput(
-        label="日時（例：21時から～、今からなど）",
-        required=True,
-        max_length=100,
-        style=discord.TextStyle.short,
-        placeholder="例：21時から～、今から など"
-    )
-    content = discord.ui.TextInput(
-        label="募集内容（例：寝落ち、雑談など）",
-        required=True,
-        max_length=100,
-        style=discord.TextStyle.short,
-        placeholder="例：雑談、新規開拓、寝落ち など"
-    )
-    appeal = discord.ui.TextInput(
-        label="抱負（例：かかってこいよなど）",
-        required=True,
-        max_length=1024,
-        style=discord.TextStyle.paragraph,
-        placeholder="例：今夜は徹夜覚悟！どんな相手でも楽しめる自信があります！"
-    )
+HERO_ROLE_ID = int(os.getenv("ROLE_HERO_ID"))
+PRINCESS_ROLE_ID = int(os.getenv("ROLE_PRINCESS_ID"))
+HERO_TARGET_ROLE_ID = int(os.getenv("ROLE_HERO_TARGET_ID"))
+PRINCESS_TARGET_ROLE_ID = int(os.getenv("ROLE_PRINCESS_TARGET_ID"))
+CHANNEL_HERO_ID = int(os.getenv("CHANNEL_HERO_RECRUITMENT_ID"))
+CHANNEL_PRINCESS_ID = int(os.getenv("CHANNEL_PRINCESS_RECRUITMENT_ID"))
+
+class PartyRecruitmentModal(discord.ui.Modal, title="バディ募集内容を入力！"):
+    date = discord.ui.TextInput(label="日時", required=True, max_length=100)
+    content = discord.ui.TextInput(label="募集内容", required=True, max_length=100)
+    appeal = discord.ui.TextInput(label="抱負", required=True, max_length=1024, style=discord.TextStyle.paragraph)
 
     async def on_submit(self, interaction: discord.Interaction):
-        profile_link = await DB.get_profile_message_link(str(interaction.user.id))
+        await interaction.response.defer(ephemeral=True)  # インタラクション応答を保留
 
+        profile_link = await DB.get_profile_message_link(interaction.user)
         embed = discord.Embed(
             title="🔍 募集内容の確認",
             color=discord.Color.red()
@@ -40,8 +30,11 @@ class PartyRecruitmentModal(discord.ui.Modal, title="パーティー募集内容
         embed.add_field(name="▷プロフィールはこちら", value=profile_link or "プロフィールが見つかりませんでした。", inline=False)
 
         view = ConfirmRecruitmentView(self.date.value, self.content.value, self.appeal.value)
-
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        try:
+            await interaction.user.send(embed=embed, view=view)
+            await interaction.followup.send("DMに確認メッセージを送信しました！", ephemeral=True)
+        except:
+            await interaction.followup.send("DMを送信できませんでした。設定を確認してください。", ephemeral=True)
 
 class ConfirmRecruitmentView(discord.ui.View):
     def __init__(self, date, content, appeal):
@@ -49,26 +42,34 @@ class ConfirmRecruitmentView(discord.ui.View):
         self.date = date
         self.content = content
         self.appeal = appeal
-        self.add_item(RewriteButton())
-        self.add_item(ConfirmButton(date, content, appeal))
+        self.add_item(RewriteButton(self))
+        self.add_item(ConfirmButton(date, content, appeal, self))
 
 class RewriteButton(discord.ui.Button):
-    def __init__(self):
-        super().__init__(label="◁書き直す", style=discord.ButtonStyle.secondary)
+    def __init__(self, parent_view):
+        super().__init__(label="◁取り消し", style=discord.ButtonStyle.danger)
+        self.parent_view = parent_view
 
     async def callback(self, interaction: discord.Interaction):
-        await interaction.response.send_modal(PartyRecruitmentModal())
+        for item in self.parent_view.children:
+            item.disabled = True
+        await interaction.message.edit(view=self.parent_view)
+        await interaction.response.send_message("募集をキャンセルしました。", ephemeral=True)
 
 class ConfirmButton(discord.ui.Button):
-    def __init__(self, date, content, appeal):
+    def __init__(self, date, content, appeal, parent_view):
         super().__init__(label="▷確定！", style=discord.ButtonStyle.success)
         self.date = date
         self.content = content
         self.appeal = appeal
+        self.parent_view = parent_view
 
     async def callback(self, interaction: discord.Interaction):
-        from cogs.handlers import post_final_recruitment  # 遅延インポート
+        from cogs.handlers import post_final_recruitment
+        for item in self.parent_view.children:
+            item.disabled = True
+        await interaction.message.edit(view=self.parent_view)
         await post_final_recruitment(interaction, self.date, self.content, self.appeal)
 
 async def setup(bot: commands.Bot):
-    pass  # モーダル用なので setup は空にしておきます
+    pass
