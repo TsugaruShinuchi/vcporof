@@ -1,12 +1,23 @@
 import asyncpg
 import os
+import traceback
 
 class DB:
     pool = None
 
     @classmethod
     async def init_pool(cls):
-        cls.pool = await asyncpg.create_pool(os.getenv("POSTGRES_URI"))
+        try:
+            uri = os.getenv("POSTGRES_URI")
+            print(f"🔍 DB接続URI: {uri}")
+            cls.pool = await asyncpg.create_pool(uri)
+            print("✅ asyncpg.create_pool 成功")
+            return cls.pool
+        except Exception as e:
+            print("❌ DBプール初期化失敗:")
+            traceback.print_exc()  # ← これが重要
+            cls.pool = None
+            return None
 
     @classmethod
     async def get_profile_message_link(cls, user: 'discord.Member'):

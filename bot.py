@@ -13,7 +13,7 @@ GUILD_ID = int(os.getenv("GUILD_ID"))
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
-
+print("📦 POSTGRES_URI =", os.getenv("POSTGRES_URI"))
 class MyBot(commands.Bot):
     async def setup_hook(self):
         db_pool = await DB.init_pool()
