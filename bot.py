@@ -15,7 +15,7 @@ intents.message_content = True
 intents.members = True
 
 class MyBot(commands.Bot):
-    async def setup_hook():
+    async def setup_hook(self):
         # DB 初期化
         db_pool=await DB.init_pool()
         bot.profile_db_pool = db_pool
