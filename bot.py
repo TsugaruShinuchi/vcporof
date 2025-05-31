@@ -23,7 +23,6 @@ async def setup_hook():
     bot.profile_db_pool = db_pool
     
     print("✅ DB プールを初期化しました。")
-    print(f"✅ bot.quest_db.pool: {bot.quest_db.pool}")
 
     # Cog を追加
     initial_extensions = [
