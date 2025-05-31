@@ -16,33 +16,30 @@ intents.members = True
 
 class MyBot(commands.Bot):
     async def setup_hook(self):
-        # DB 初期化
-        db_pool=await DB.init_pool()
-        bot.profile_db_pool = db_pool
-        
+        db_pool = await DB.init_pool()
+        self.profile_db_pool = db_pool
         print("✅ DB プールを初期化しました。")
 
-        # Cog を追加
         initial_extensions = [
             "cogs.recruitment",
             "cogs.modals",
             "cogs.handlers"
         ]
         for ext in initial_extensions:
-            await bot.load_extension(ext)
+            await self.load_extension(ext)
         print("✅ Cogs を登録しました。")
 
-        # ギルドコマンドを同期
         guild = discord.Object(id=GUILD_ID)
-        await bot.tree.sync(guild=guild)
+        await self.tree.sync(guild=guild)
         print("✅ ギルドコマンドを同期しました。")
 
         from cogs.recruitment import RecruitmentView
         from cogs.profile import ProfileCog
-        bot.add_view(RecruitmentView())
-        await bot.add_cog(ProfileCog(bot))
+        self.add_view(RecruitmentView())
+        await self.add_cog(ProfileCog(self))
 
-bot = commands.Bot(command_prefix="!", intents=intents)
+# 正しく MyBot を使用
+bot = MyBot(command_prefix="!", intents=intents)
 
 @bot.event
 async def on_ready():
