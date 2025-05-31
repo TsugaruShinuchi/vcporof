@@ -42,7 +42,7 @@ async def setup_hook():
     from cogs.recruitment import RecruitmentView
     from cogs.profile import ProfileCog
     bot.add_view(RecruitmentView())
-    bot.add_cog(ProfileCog(bot))
+    await bot.add_cog(ProfileCog(bot))
 
 @bot.event
 async def on_ready():
