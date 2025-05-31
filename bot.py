@@ -37,6 +37,8 @@ class MyBot(commands.Bot):
         from cogs.profile import ProfileCog
         self.add_view(RecruitmentView())
         await self.add_cog(ProfileCog(self))
+        print(f"✅ DB プール初期化済: {self.profile_db_pool is not None}")
+
 
 # 正しく MyBot を使用
 bot = MyBot(command_prefix="!", intents=intents)

@@ -55,6 +55,9 @@ class ProfileCog(commands.Cog):
         def ignored(ch):
             return ch and (ch.id in self.IGNORE_VC_CHANNEL_IDS or (ch.category and ch.category.id in self.IGNORE_VC_CATEGORY_IDS))
 
+        if self.bot.profile_db_pool is None:
+            print("❗ profile_db_pool is not initialized yet.")
+            return
         # ミュートなどの状態変化のみは無視
         if before.channel == after.channel:
             return
