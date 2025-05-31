@@ -19,8 +19,11 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 @bot.event
 async def setup_hook():
     # DB 初期化
-    await DB.init_pool()
+    db_pool=await DB.init_pool()
+    bot.profile_db_pool = db_pool
+    
     print("✅ DB プールを初期化しました。")
+    print(f"✅ bot.quest_db.pool: {bot.quest_db.pool}")
 
     # Cog を追加
     initial_extensions = [
@@ -38,7 +41,9 @@ async def setup_hook():
     print("✅ ギルドコマンドを同期しました。")
 
     from cogs.recruitment import RecruitmentView
+    from cogs.profile import ProfileCog
     bot.add_view(RecruitmentView())
+    bot.add_cog(ProfileCog(bot))
 
 @bot.event
 async def on_ready():
