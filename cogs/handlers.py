@@ -46,37 +46,33 @@ class ApplyView(discord.ui.View):
         self.add_item(ApplyButton(author_id))
 
 class DMDeleteButton(discord.ui.Button):
-    def __init__(self, message_id: int, channel_id: int):
-        super().__init__(label="🗑 募集を削除", style=discord.ButtonStyle.danger)
-        self.message_id = message_id
-        self.channel_id = channel_id
+    def __init__(self):
+        super().__init__(label="🗑 募集を削除", style=discord.ButtonStyle.danger, custom_id="delete_recruitment")
 
     async def callback(self, interaction: discord.Interaction):
-        guild = interaction.client.get_guild(GUILD_ID)
-        
-        if not guild:
-            await interaction.response.send_message("ギルドが見つかりません。", ephemeral=True)
+        data = await DB.get_recruitment_by_user_id(interaction.user.id)
+        if not data:
+            await interaction.response.send_message("削除情報が見つかりませんでした。", ephemeral=True)
             return
 
-        channel = guild.get_channel(self.channel_id)
+        guild = interaction.client.get_guild(GUILD_ID)
+        channel = guild.get_channel(data["channel_id"])
         if not channel:
             await interaction.response.send_message("チャンネルが見つかりません。", ephemeral=True)
             return
 
         try:
-            message = await channel.fetch_message(self.message_id)
+            message = await channel.fetch_message(data["message_id"])
             await message.delete()
-            await DB.delete_recruit_message(self.message_id)
+            await DB.delete_recruit_message(data["message_id"])
         except:
             await interaction.response.send_message("メッセージの削除に失敗しました。", ephemeral=True)
             return
 
-        # ボタン無効化用に編集
         self.disabled = True
         self.label = "✅ 削除済み"
         view = discord.ui.View()
         view.add_item(self)
-
         await interaction.response.edit_message(view=view)
 
 async def post_final_recruitment(interaction: discord.Interaction, date: str, content: str, appeal: str):
