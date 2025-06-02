@@ -39,3 +39,22 @@ class DB:
 
             guild_id = os.getenv("GUILD_ID")
             return f"https://discord.com/channels/{guild_id}/{channel_id}/{row['message_id']}"
+        
+    @classmethod
+    async def save_recruit_message(cls, user_id: int, channel_id: int, message_id: int):
+        async with cls.pool.acquire() as conn:
+            await conn.execute(
+                "INSERT INTO recruit_messages (user_id, channel_id, message_id) VALUES ($1, $2, $3)",
+                user_id, channel_id, message_id
+            )
+
+    @classmethod
+    async def get_all_recruit_messages(cls):
+        async with cls.pool.acquire() as conn:
+            return await conn.fetch("SELECT user_id, channel_id, message_id FROM recruit_messages")
+
+    @classmethod
+    async def delete_recruit_message(cls, message_id: int):
+        async with cls.pool.acquire() as conn:
+            await conn.execute("DELETE FROM recruit_messages WHERE message_id = $1", message_id)
+

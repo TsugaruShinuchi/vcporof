@@ -53,6 +53,7 @@ class DMDeleteButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         guild = interaction.client.get_guild(GUILD_ID)
+        
         if not guild:
             await interaction.response.send_message("ギルドが見つかりません。", ephemeral=True)
             return
@@ -65,6 +66,7 @@ class DMDeleteButton(discord.ui.Button):
         try:
             message = await channel.fetch_message(self.message_id)
             await message.delete()
+            await DB.delete_recruit_message(self.message_id)
         except:
             await interaction.response.send_message("メッセージの削除に失敗しました。", ephemeral=True)
             return
@@ -122,6 +124,10 @@ async def post_final_recruitment(interaction: discord.Interaction, date: str, co
 
     view = ApplyView(member.id)
     msg = await recruitment_channel.send(content=f"<@&{mention_role_id}>", embed=embed, view=view)
+
+    # DBに保存
+    await DB.save_recruitment(user_id=member.id, message_id=msg.id, channel_id=recruitment_channel.id)
+
 
     # DMに削除ボタン付きで送信
     try:

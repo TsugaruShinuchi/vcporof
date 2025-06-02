@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import os
 from utils.db import DB
 
+
 # .env 読み込み
 load_dotenv()
 
@@ -39,6 +40,12 @@ class MyBot(commands.Bot):
         await self.add_cog(ProfileCog(self))
         print(f"✅ DB プール初期化済: {self.profile_db_pool is not None}")
 
+        from cogs.handlers import DMDeleteButton
+        rows = await DB.get_all_recruit_messages()
+        for row in rows:
+            view = discord.ui.View(timeout=None)
+            view.add_item(DMDeleteButton(row["message_id"], row["channel_id"]))
+            bot.add_view(view)
 
 # 正しく MyBot を使用
 bot = MyBot(command_prefix="!", intents=intents)
