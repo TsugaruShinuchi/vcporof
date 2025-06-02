@@ -46,34 +46,43 @@ class ApplyView(discord.ui.View):
         self.add_item(ApplyButton(author_id))
 
 class DMDeleteButton(discord.ui.Button):
-    def __init__(self):
-        super().__init__(label="🗑 募集を削除", style=discord.ButtonStyle.danger, custom_id="delete_recruitment")
+    def __init__(self, message_id: int, channel_id: int):
+        super().__init__(
+            label="🗑 募集を削除",
+            style=discord.ButtonStyle.danger,
+            custom_id=f"delete_recruit:{channel_id}:{message_id}"
+        )
+        self.message_id = message_id
+        self.channel_id = channel_id
 
     async def callback(self, interaction: discord.Interaction):
-        data = await DB.get_recruitment_by_user_id(interaction.user.id)
-        if not data:
-            await interaction.response.send_message("削除情報が見つかりませんでした。", ephemeral=True)
+        guild = interaction.client.get_guild(GUILD_ID)
+
+        if not guild:
+            await interaction.response.send_message("ギルドが見つかりません。", ephemeral=True)
             return
 
-        guild = interaction.client.get_guild(GUILD_ID)
-        channel = guild.get_channel(data["channel_id"])
+        channel = guild.get_channel(self.channel_id)
         if not channel:
             await interaction.response.send_message("チャンネルが見つかりません。", ephemeral=True)
             return
 
         try:
-            message = await channel.fetch_message(data["message_id"])
+            message = await channel.fetch_message(self.message_id)
             await message.delete()
-            await DB.delete_recruit_message(data["message_id"])
-        except:
+            await DB.delete_recruit_message(self.message_id)
+        except Exception as e:
+            print(f"メッセージ削除失敗: {e}")
             await interaction.response.send_message("メッセージの削除に失敗しました。", ephemeral=True)
             return
 
+        # ボタンを無効にして表示更新
         self.disabled = True
         self.label = "✅ 削除済み"
         view = discord.ui.View()
         view.add_item(self)
         await interaction.response.edit_message(view=view)
+
 
 async def post_final_recruitment(interaction: discord.Interaction, date: str, content: str, appeal: str):
     guild = interaction.client.get_guild(GUILD_ID)
