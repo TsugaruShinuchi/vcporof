@@ -27,7 +27,11 @@ class PartyRecruitmentModal(discord.ui.Modal, title="バディ募集内容を入
         embed.add_field(name="【日時】", value=self.date.value, inline=False)
         embed.add_field(name="【内容】", value=self.content.value, inline=False)
         embed.add_field(name="【抱負】", value=self.appeal.value, inline=False)
-        embed.add_field(name="▷プロフィールはこちら", value=profile_link or "プロフィールが見つかりませんでした。", inline=False)
+        embed.add_field(
+            name="\u200b",
+            value=f"[プロフィールを見る]({profile_link})" if profile_link else "プロフィールが見つかりませんでした。",
+            inline=False
+        )
 
         view = ConfirmRecruitmentView(self.date.value, self.content.value, self.appeal.value)
         try:
