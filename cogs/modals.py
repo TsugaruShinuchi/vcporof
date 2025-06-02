@@ -38,7 +38,7 @@ class PartyRecruitmentModal(discord.ui.Modal, title="バディ募集内容を入
 
 class ConfirmRecruitmentView(discord.ui.View):
     def __init__(self, date, content, appeal):
-        super().__init__(timeout=300)
+        super().__init__(timeout=None)
         self.date = date
         self.content = content
         self.appeal = appeal
