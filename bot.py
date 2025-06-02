@@ -24,7 +24,7 @@ class MyBot(commands.Bot):
         initial_extensions = [
             "cogs.recruitment",
             "cogs.modals",
-            "cogs.handlers"
+            "cogs.handlers",
             "cogs.profile"
         ]
         for ext in initial_extensions:
