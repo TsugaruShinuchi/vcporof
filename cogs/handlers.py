@@ -107,7 +107,6 @@ async def post_final_recruitment(interaction: discord.Interaction, date: str, co
     embed.add_field(name="【内容】", value=content, inline=False)
     embed.add_field(name="【抱負】", value=appeal, inline=False)
     embed.add_field(
-        name="▷プロフィールはこちら", 
         value=f"[プロフィールを見る]({profile_link})" if profile_link else "プロフィールが見つかりませんでした。",
         inline=False
     )
@@ -149,7 +148,6 @@ async def handle_application_submission(interaction: discord.Interaction, author
         color=embed_color
     )
     embed_to_author.add_field(
-        name="▷プロフィールはこちら", 
         value=f"[プロフィールを見る]({profile_link})" if profile_link else "プロフィールが見つかりませんでした。",
         inline=False
     )
