@@ -106,7 +106,11 @@ async def post_final_recruitment(interaction: discord.Interaction, date: str, co
     embed.add_field(name="【日時】", value=date, inline=False)
     embed.add_field(name="【内容】", value=content, inline=False)
     embed.add_field(name="【抱負】", value=appeal, inline=False)
-    embed.add_field(name="▷プロフィールはこちら", value=profile_link or "プロフィールが見つかりませんでした。", inline=False)
+    embed.add_field(
+        name="▷プロフィールはこちら", 
+        value=f"[プロフィールを見る]({profile_link})" if profile_link else "プロフィールが見つかりませんでした。",
+        inline=False
+    )
 
     mention_role_id = HERO_TARGET_ROLE_ID if is_hero else PRINCESS_TARGET_ROLE_ID
     channel_id = CHANNEL_HERO_ID if is_hero else CHANNEL_PRINCESS_ID
@@ -144,7 +148,11 @@ async def handle_application_submission(interaction: discord.Interaction, author
         description=f"{interaction.user.mention} からバディの応募がありました✨\nDMでお返事してあげてください！",
         color=embed_color
     )
-    embed_to_author.add_field(name="▷プロフィールはこちら", value=profile_link or "プロフィールが見つかりませんでした。", inline=False)
+    embed_to_author.add_field(
+        name="▷プロフィールはこちら", 
+        value=f"[プロフィールを見る]({profile_link})" if profile_link else "プロフィールが見つかりませんでした。",
+        inline=False
+    )
     embed_to_author.add_field(name="🗨 応募メッセージ", value=comment, inline=False)
     embed_to_author.set_thumbnail(url=interaction.user.display_avatar.url)
 
