@@ -41,7 +41,7 @@ class DB:
             return f"https://discord.com/channels/{guild_id}/{channel_id}/{row['message_id']}"
         
     @classmethod
-    async def save_recruit(cls, user_id: int, channel_id: int, message_id: int):
+    async def save_recruitment(cls, user_id: int, channel_id: int, message_id: int):
         async with cls.pool.acquire() as conn:
             await conn.execute(
                 "INSERT INTO recruit_messages (user_id, channel_id, message_id) VALUES ($1, $2, $3)",
