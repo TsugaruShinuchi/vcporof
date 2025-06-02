@@ -36,9 +36,7 @@ class MyBot(commands.Bot):
         print("✅ ギルドコマンドを同期しました。")
 
         from cogs.recruitment import RecruitmentView
-        from cogs.profile import ProfileCog
         self.add_view(RecruitmentView())
-        await self.add_cog(ProfileCog(self))
         print(f"✅ DB プール初期化済: {self.profile_db_pool is not None}")
 
         from cogs.handlers import DMDeleteButton
