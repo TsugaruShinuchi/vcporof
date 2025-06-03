@@ -50,7 +50,7 @@ class DMDeleteButton(discord.ui.Button):
         super().__init__(
             label="🗑 募集を削除",
             style=discord.ButtonStyle.danger,
-            custom_id=f"delete_recruit:{channel_id}:{message_id}"
+            custom_id=str(message_id)
         )
         self.message_id = message_id
         self.channel_id = channel_id

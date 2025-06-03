@@ -17,7 +17,7 @@ def determine_color(embed_color, member):
     if any(r in (ROLE_INN, ROLE_HAPPY, ROLE_FAIRY) for r in rids):
         return 0x00FF00
     if ROLE_PRINCESS in rids:
-        return 0xFFC0CB
+        return 0xFF0099
     if ROLE_BRAVE in rids:
-        return 0xBCE2E8
+        return 0x3300FF
     return Color.default()
