@@ -47,8 +47,9 @@ class ProfileCog(commands.Cog):
     @app_commands.guilds(discord.Object(id=GUILD_ID))
     @app_commands.default_permissions(administrator=True)
     async def register_color(self, interaction: discord.Interaction, user: discord.User, color: str):
-        await set_color(user.id, color)
+        await set_color(self.bot.profile_db_pool, user.id, color)
         await interaction.response.send_message("✅ カラーを更新しました。", ephemeral=True)
+
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
