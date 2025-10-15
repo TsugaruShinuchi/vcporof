@@ -130,7 +130,7 @@ class RecruitView(View):
         # --- 🔹 VCチャットに許可ボタン付きメッセージ送信 ---
         try:
             view = PermitView(self.bot, self.session, applicant)
-            msg = await vc.send(
+            msg = await owner.send(
                 f"🚨 **救助要請VC**\n"
                 f"{owner.mention} さん！ {applicant.mention} さんが立候補しました！\n"
                 f"5分以内に許可してください👇",
@@ -316,18 +316,51 @@ class EncountCog(commands.Cog):
         embed = discord.Embed(color=discord.Color.blue(), description=f"{owner.mention} が募集開始。")
         await log_ch.send(embed=embed)
 
-    @tasks.loop(seconds=60)
-    async def cleanup_empty_vcs(self):
-        """⑦ VCが空なら削除"""
-        for guild_id, sessions in list(self.bot.active_sessions.items()):
-            guild = self.bot.get_guild(guild_id)
-            for sess in sessions.copy():
-                if len(sess.vc.members) == 0:
+@tasks.loop(seconds=60)
+async def cleanup_empty_vcs(self):
+    """⑦ VCが空なら削除 + 募集ボタン削除"""
+    for guild_id, sessions in list(self.bot.active_sessions.items()):
+        guild = self.bot.get_guild(guild_id)
+        for sess in sessions.copy():
+            try:
+                # --- 🔹 VCが存在しない or 空なら削除対象 ---
+                if not sess.vc or len(sess.vc.members) == 0:
+                    # --- 🗑️ 募集メッセージ削除処理 ---
+                    if sess.recruit_msg:
+                        try:
+                            await sess.recruit_msg.delete()
+                            print(f"🗑️ 募集メッセージ削除完了（{sess.vc.name}）")
+                        except discord.NotFound:
+                            print(f"⚠️ 募集メッセージは既に削除済み（{sess.vc.name}）")
+                        except Exception as e:
+                            print(f"⚠️ 募集メッセージ削除失敗: {type(e).__name__}: {e}")
+
+                    # --- 🗑️ VC削除 ---
                     try:
                         await sess.vc.delete(reason="VCが空になったため削除")
-                    except:
-                        pass
+                        print(f"🧹 VC削除完了 → {sess.vc.name}")
+                    except discord.NotFound:
+                        print(f"⚠️ VCは既に削除済み: {sess.vc.name}")
+                    except Exception as e:
+                        print(f"❌ VC削除中にエラー: {type(e).__name__}: {e}")
+
+                    # --- 🔹 ログ送信 ---
+                    try:
+                        log_ch = guild.get_channel(ENCOUNT_LOG_TC_ID)
+                        if log_ch:
+                            embed = discord.Embed(
+                                color=discord.Color.orange(),
+                                description=f"{sess.owner.mention} の救助VC（{sess.vc.name}）を削除しました。（無人）"
+                            )
+                            await log_ch.send(embed=embed)
+                    except Exception as e:
+                        print(f"⚠️ ログ送信失敗: {type(e).__name__}: {e}")
+
+                    # --- 🔹 セッション削除 ---
                     sessions.remove(sess)
+            except Exception as e:
+                print(f"❌ cleanup_empty_vcs ループ内エラー: {type(e).__name__}: {e}")
+
 
     @cleanup_empty_vcs.before_loop
     async def before_cleanup(self):
