@@ -209,13 +209,13 @@ class PermitView(View):
         # --- 🔹 公開通知 ---
         try:
             await interaction.response.send_message(
-                f"{self.applicant.mention} に救出を許可しました。{dm_status}\n🔗 {vc_url}",
-                ephemeral=False
+                f"{self.applicant.mention} に救出を許可しました。{dm_status}",
+                ephemeral=True
             )
         except discord.InteractionResponded:
             await interaction.followup.send(
-                f"{self.applicant.mention} に救出を許可しました。{dm_status}\n🔗 {vc_url}",
-                ephemeral=False
+                f"{self.applicant.mention} に救出を許可しました。{dm_status}",
+                ephemeral=True
             )
         print("✅ 許可メッセージ送信完了")
 
@@ -240,7 +240,6 @@ class PermitView(View):
             color=discord.Color.yellow(),
             description=(
                 f"{owner.mention} が {self.applicant.mention} とマッチングしました。\n"
-                f"🔗 [VCへジャンプ]({vc_url})"
             )
         )
         await log_ch.send(embed=embed)
