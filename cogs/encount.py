@@ -152,7 +152,6 @@ class RecruitView(View):
         )
         await log_ch.send(embed=embed)
         print("🪵 ログ送信完了")
-
 class PermitView(View):
     """⑤ 『許可』ボタン"""
     def __init__(self, bot, session: RescueSession, applicant: discord.Member):
@@ -169,7 +168,7 @@ class PermitView(View):
     )
     async def permit_button(self, interaction: discord.Interaction, button: Button):
         vc = self.session.vc
-        guild = interaction.guild
+        guild = self.session.vc.guild   # ← 修正ポイント！（DM対応）
         owner = self.session.owner
 
         print(f"🟢 Permitボタン押下検知: applicant={self.applicant.display_name}, vc={vc.name}")
@@ -206,7 +205,7 @@ class PermitView(View):
             dm_status = f"⚠️ DM送信中にエラー: {e}"
             print(f"❌ DM送信エラー: {type(e).__name__}: {e}")
 
-        # --- 🔹 公開通知 ---
+        # --- 🔹 公開通知（DM内は followup しか使えない） ---
         try:
             await interaction.response.send_message(
                 f"{self.applicant.mention} に救出を許可しました。{dm_status}",
@@ -219,28 +218,18 @@ class PermitView(View):
             )
         print("✅ 許可メッセージ送信完了")
 
-        # --- 🔹 許可ボタン削除 ---
+        # --- 🔹 ボタン削除処理 ---
         try:
             await interaction.message.edit(view=None)
-            print("🗑️ 許可ボタン（自分のメッセージ）削除完了")
+            print("🗑️ 許可ボタン削除完了")
         except Exception as e:
             print(f"⚠️ 許可ボタン削除失敗: {e}")
-
-        # --- 🔹 募集通知（立候補ボタン）削除 ---
-        try:
-            if hasattr(self.session, "recruit_view_message"):
-                await self.session.recruit_view_message.edit(view=None)
-                print("🗑️ 募集通知の立候補ボタン削除完了")
-        except Exception as e:
-            print(f"⚠️ 募集通知ボタン削除失敗: {e}")
 
         # --- 🔹 ログ送信 ---
         log_ch = guild.get_channel(ENCOUNT_LOG_TC_ID)
         embed = discord.Embed(
             color=discord.Color.yellow(),
-            description=(
-                f"{owner.mention} が {self.applicant.mention} とマッチングしました。\n"
-            )
+            description=f"{owner.mention} が {self.applicant.mention} とマッチングしました。\n🔗 [VCへジャンプ]({vc_url})"
         )
         await log_ch.send(embed=embed)
         print("🪵 ログ送信完了")
@@ -268,6 +257,10 @@ class EncountCog(commands.Cog):
     async def encount(self, interaction: discord.Interaction):
         view = RescueRequestView(self.bot)
         await interaction.response.send_message(
+            "ボタンを設置しました！",
+            ephemeral=True
+        )
+        await interaction.followup.send(
             "🚨 **救助要請はこちらから！**",
             view=view,
             ephemeral=False
