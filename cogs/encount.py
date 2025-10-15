@@ -226,12 +226,14 @@ class PermitView(View):
             print(f"⚠️ 許可ボタン削除失敗: {e}")
 
         # --- 🔹 ボタン削除 ---
-        if self.session.recruit_msg:
-            try:
-                await self.session.recruit_msg.edit(view=None)
-                print("🗑️ 募集メッセージのボタン削除完了")
-            except Exception as e:
-                print(f"⚠️ recruit_msg.edit(view=None) 失敗: {e}")
+        try:
+            if hasattr(self.session, "recruit_view_message"):
+                await self.session.recruit_view_message.edit(view=None)
+                print("🗑️ 募集通知（立候補ボタン）削除完了")
+            else:
+                print("⚠️ recruit_view_message が未設定でした")
+        except Exception as e:
+            print(f"⚠️ 立候補ボタン削除失敗: {type(e).__name__}: {e}")
 
         # --- 🔹 ログ送信 ---
         log_ch = guild.get_channel(ENCOUNT_LOG_TC_ID)
