@@ -281,6 +281,27 @@ class EncountCog(commands.Cog):
         else:
             raise error
 
+    async def start_recruit(self, sess: RescueSession):
+        """④ 募集開始処理"""
+        guild = sess.vc.guild
+        recruit_ch = guild.get_channel(ENCOUNT_RECRUITMENT_TC_ID)
+        owner = sess.owner
+
+        # 募集先ロール判定
+        has_princess = any(r.id == WAITING_PRINCESS_ROLE_ID for r in owner.roles)
+        target_role_id = WAITING_HERO_ROLE_ID if has_princess else WAITING_PRINCESS_ROLE_ID
+
+        view = RecruitView(self.bot, sess)
+        sess.recruit_view = view
+        msg = await recruit_ch.send(f"<@&{target_role_id}> 各位、立候補はこちら！", view=view)
+        sess.recruit_msg = msg
+
+        await owner.send("募集開始しました！")
+
+        log_ch = guild.get_channel(ENCOUNT_LOG_TC_ID)
+        embed = discord.Embed(color=discord.Color.blue(), description=f"{owner.mention} が募集開始。")
+        await log_ch.send(embed=embed)
+
     # ==========================
     # 🧹 VC自動削除タスク
     # ==========================
