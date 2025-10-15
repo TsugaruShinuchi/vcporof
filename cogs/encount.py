@@ -225,6 +225,14 @@ class PermitView(View):
         except Exception as e:
             print(f"⚠️ 許可ボタン削除失敗: {e}")
 
+        # --- 🔹 ボタン削除 ---
+        if self.session.recruit_msg:
+            try:
+                await self.session.recruit_msg.edit(view=None)
+                print("🗑️ 募集メッセージのボタン削除完了")
+            except Exception as e:
+                print(f"⚠️ recruit_msg.edit(view=None) 失敗: {e}")
+
         # --- 🔹 ログ送信 ---
         log_ch = guild.get_channel(ENCOUNT_LOG_TC_ID)
         embed = discord.Embed(
