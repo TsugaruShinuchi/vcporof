@@ -138,6 +138,7 @@ class RecruitView(View):
             )
             print(f"💬 PermitView送信成功 → msg.id={msg.id}, vc={vc.name}")
             self.session.recruit_msg = msg
+            self.session.recruit_view_message = interaction.message  # 自身のメッセージを保存
 
         except Exception as e:
             print(f"❌ VCチャット送信失敗: {type(e).__name__}: {e}")
@@ -186,10 +187,15 @@ class PermitView(View):
         )
         print("✅ VC権限追加成功！")
 
+        # --- 🔹 VC URLを生成 ---
+        vc_url = f"https://ptb.discord.com/channels/{guild.id}/{vc.id}"
+        print(f"🔗 VC URL: {vc_url}")
+
         # --- 🔹 DM通知 ---
         try:
             await self.applicant.send(
-                f"🎧 VC『{vc.name}』に入室してください。"
+                f"✅ 運命の扉が開かれました！🚪\n"
+                f"🎧 VCに入室してください：\n{vc_url}"
             )
             dm_status = "📨 DM送信完了"
             print("📩 DM送信成功！")
@@ -203,29 +209,39 @@ class PermitView(View):
         # --- 🔹 公開通知 ---
         try:
             await interaction.response.send_message(
-                f"{self.applicant.mention} に救出を許可しました。{dm_status}",
+                f"{self.applicant.mention} に救出を許可しました。{dm_status}\n🔗 {vc_url}",
                 ephemeral=False
             )
         except discord.InteractionResponded:
             await interaction.followup.send(
-                f"{self.applicant.mention} に救出を許可しました。{dm_status}",
+                f"{self.applicant.mention} に救出を許可しました。{dm_status}\n🔗 {vc_url}",
                 ephemeral=False
             )
         print("✅ 許可メッセージ送信完了")
 
-        # --- 🔹 ボタン削除 ---
-        if self.session.recruit_msg:
-            try:
-                await self.session.recruit_msg.edit(view=None)
-                print("🗑️ 募集メッセージのボタン削除完了")
-            except Exception as e:
-                print(f"⚠️ recruit_msg.edit(view=None) 失敗: {e}")
+        # --- 🔹 許可ボタン削除 ---
+        try:
+            await interaction.message.edit(view=None)
+            print("🗑️ 許可ボタン（自分のメッセージ）削除完了")
+        except Exception as e:
+            print(f"⚠️ 許可ボタン削除失敗: {e}")
+
+        # --- 🔹 募集通知（立候補ボタン）削除 ---
+        try:
+            if hasattr(self.session, "recruit_view_message"):
+                await self.session.recruit_view_message.edit(view=None)
+                print("🗑️ 募集通知の立候補ボタン削除完了")
+        except Exception as e:
+            print(f"⚠️ 募集通知ボタン削除失敗: {e}")
 
         # --- 🔹 ログ送信 ---
         log_ch = guild.get_channel(ENCOUNT_LOG_TC_ID)
         embed = discord.Embed(
             color=discord.Color.yellow(),
-            description=f"{owner.mention} が {self.applicant.mention} とマッチングしました。"
+            description=(
+                f"{owner.mention} が {self.applicant.mention} とマッチングしました。\n"
+                f"🔗 [VCへジャンプ]({vc_url})"
+            )
         )
         await log_ch.send(embed=embed)
         print("🪵 ログ送信完了")
