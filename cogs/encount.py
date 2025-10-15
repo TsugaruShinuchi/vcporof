@@ -270,11 +270,14 @@ class EncountCog(commands.Cog):
             "ボタンを設置しました！",
             ephemeral=True
         )
-        await interaction.followup.send(
-            "🚨 **救助要請はこちらから！**",
-            view=view,
-            ephemeral=False
-        )
+        # 指定チャンネルに設置する場合（例：募集チャンネル）
+        target_ch = interaction.channel  # フォールバック
+        await target_ch.send("🚨 **救助要請はこちらから！**", view=view)
+        # await interaction.followup.send(
+        #     "🚨 **救助要請はこちらから！**",
+        #     view=view,
+        #     ephemeral=False
+        # )
         await interaction.followup.send("✅ 救助要請ボタンを設置しました。", ephemeral=True)
 
     @encount.error
