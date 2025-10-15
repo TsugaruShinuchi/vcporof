@@ -25,7 +25,8 @@ class MyBot(commands.Bot):
             # "cogs.recruitment",
             # "cogs.modals",
             # "cogs.handlers",
-            "cogs.profile"
+            "cogs.profile",
+            "cogs.encount"
         ]
         for ext in initial_extensions:
             await self.load_extension(ext)
