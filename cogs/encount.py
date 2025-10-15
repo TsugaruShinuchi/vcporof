@@ -280,6 +280,17 @@ class EncountCog(commands.Cog):
             await interaction.response.send_message("❌ 管理者専用コマンドです。", ephemeral=True)
         else:
             raise error
+        
+    @commands.Cog.listener()
+    async def on_voice_state_update(self, member, before, after):
+        # ③ VC入室検知
+        if before.channel is None and after.channel is not None:
+            sessions = self.bot.active_sessions.get(member.guild.id, [])
+            for sess in sessions:
+                if sess.owner.id == member.id and after.channel.id == sess.vc.id:
+                    sess.joined = True
+                    await self.start_recruit(sess)
+                    break
 
     async def start_recruit(self, sess: RescueSession):
         """④ 募集開始処理"""
