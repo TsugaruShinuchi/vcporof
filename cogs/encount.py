@@ -126,7 +126,7 @@ class RecruitView(View):
         target_role_id = WAITING_HERO_ROLE_ID if has_princess else WAITING_PRINCESS_ROLE_ID
 
         # --- ✅ ① 同陣営禁止チェック ---
-        if any(r.id == target_role_id for r in applicant.roles):
+        if any(r.id != target_role_id for r in applicant.roles):
             await interaction.response.send_message(
                 "⚠️ あなたはこの募集の対象と同じ陣営のため、立候補できません。",
                 ephemeral=True
