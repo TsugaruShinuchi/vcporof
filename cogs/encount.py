@@ -121,13 +121,26 @@ class RecruitView(View):
 
         print(f"✅ 立候補ボタン押下 → applicant={applicant.display_name}, owner={owner.display_name}, vc={vc.name}")
 
+        # --- 🔹 募集対象を判定 ---
+        has_princess = any(r.id == WAITING_PRINCESS_ROLE_ID for r in owner.roles)
+        target_role_id = WAITING_HERO_ROLE_ID if has_princess else WAITING_PRINCESS_ROLE_ID
+
+        # --- ✅ ① 同陣営禁止チェック ---
+        if any(r.id == target_role_id for r in applicant.roles):
+            await interaction.response.send_message(
+                "⚠️ あなたはこの募集の対象と同じ陣営のため、立候補できません。",
+                ephemeral=True
+            )
+            print(f"🚫 {applicant.display_name} は対象ロールと同じのため拒否されました。")
+            return
+
         # --- 🔹 応答（ユーザーに通知）
         await interaction.response.send_message(
             f"🙋‍♀️ 立候補しました！",
             ephemeral=True
         )
 
-        # --- 🔹 VCチャットに許可ボタン付きメッセージ送信 ---
+        # --- 🔹 オーナーに許可ボタン付きDM送信 ---
         try:
             view = PermitView(self.bot, self.session, applicant)
             msg = await owner.send(
@@ -141,8 +154,8 @@ class RecruitView(View):
             self.session.recruit_view_message = interaction.message  # 自身のメッセージを保存
 
         except Exception as e:
-            print(f"❌ VCチャット送信失敗: {type(e).__name__}: {e}")
-            await interaction.followup.send(f"❌ VCチャット送信失敗: {e}", ephemeral=True)
+            print(f"❌ オーナーDM送信失敗: {type(e).__name__}: {e}")
+            await interaction.followup.send(f"❌ DM送信失敗: {e}", ephemeral=True)
 
         # --- 🔹 ログ送信 ---
         log_ch = guild.get_channel(ENCOUNT_LOG_TC_ID)
@@ -152,6 +165,7 @@ class RecruitView(View):
         )
         await log_ch.send(embed=embed)
         print("🪵 ログ送信完了")
+
 class PermitView(View):
     """⑤ 『許可』ボタン"""
     def __init__(self, bot, session: RescueSession, applicant: discord.Member):
@@ -324,7 +338,7 @@ class EncountCog(commands.Cog):
     # ==========================
     @tasks.loop(seconds=60)
     async def cleanup_empty_vcs(self):
-        """⑦ VCが空なら削除 + 募集ボタン削除"""
+        """⑦ VCが空なら削除 + 募集ボタン削除 + 立候補ボタン削除"""
         for guild_id, sessions in list(self.bot.active_sessions.items()):
             guild = self.bot.get_guild(guild_id)
             for sess in sessions.copy():
@@ -339,6 +353,16 @@ class EncountCog(commands.Cog):
                                 print(f"⚠️ 募集メッセージは既に削除済み（{sess.vc.name}）")
                             except Exception as e:
                                 print(f"⚠️ 募集メッセージ削除失敗: {type(e).__name__}: {e}")
+
+                        # --- 🗑️ 立候補ボタン削除 ---
+                        if hasattr(sess, "recruit_view_message") and sess.recruit_view_message:
+                            try:
+                                await sess.recruit_view_message.edit(view=None)
+                                print(f"🗑️ 立候補ボタン削除完了（{sess.vc.name}）")
+                            except discord.NotFound:
+                                print(f"⚠️ 立候補ボタンは既に削除済み（{sess.vc.name}）")
+                            except Exception as e:
+                                print(f"⚠️ 立候補ボタン削除失敗: {type(e).__name__}: {e}")
 
                         # --- 🧹 VC削除 ---
                         try:
