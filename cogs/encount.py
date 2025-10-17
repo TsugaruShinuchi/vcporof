@@ -125,67 +125,6 @@ class RecruitView(View):
         has_princess = any(r.id == WAITING_PRINCESS_ROLE_ID for r in owner.roles)
         target_role_id = WAITING_HERO_ROLE_ID if has_princess else WAITING_PRINCESS_ROLE_ID
 
-        # --- ✅ ① 同陣営禁止チェック ---
-        if any(r.id != target_role_id for r in applicant.roles):
-            await interaction.response.send_message(
-                "⚠️ あなたはこの募集の対象と同じ陣営のため、立候補できません。",
-                ephemeral=True
-            )
-            print(f"🚫 {applicant.display_name} は対象ロールと同じのため拒否されました。")
-            return
-
-        # --- 🔹 応答（ユーザーに通知）
-        await interaction.response.send_message(
-            f"🙋‍♀️ 立候補しました！",
-            ephemeral=True
-        )
-
-        # --- 🔹 オーナーに許可ボタン付きDM送信 ---
-        try:
-            view = PermitView(self.bot, self.session, applicant)
-            msg = await owner.send(
-                f"🚨 **救助要請VC**\n"
-                f"{owner.mention} さん！ {applicant.mention} さんが立候補しました！\n"
-                f"5分以内に許可してください👇",
-                view=view
-            )
-            print(f"💬 PermitView送信成功 → msg.id={msg.id}, vc={vc.name}")
-            self.session.recruit_msg = msg
-            self.session.recruit_view_message = interaction.message  # 自身のメッセージを保存
-
-        except Exception as e:
-            print(f"❌ オーナーDM送信失敗: {type(e).__name__}: {e}")
-            await interaction.followup.send(f"❌ DM送信失敗: {e}", ephemeral=True)
-
-        # --- 🔹 ログ送信 ---
-        log_ch = guild.get_channel(ENCOUNT_LOG_TC_ID)
-        embed = discord.Embed(
-            color=discord.Color.yellow(),
-            description=f"{applicant.mention} が {owner.mention} に立候補しました。"
-        )
-        await log_ch.send(embed=embed)
-        print("🪵 ログ送信完了")
-
-class RecruitView(View):
-    """④ 募集通知『立候補』ボタン"""
-    def __init__(self, bot, session: RescueSession):
-        super().__init__(timeout=3600)
-        self.bot = bot
-        self.session = session
-
-    @discord.ui.button(label="🙋‍♀️ 立候補", style=discord.ButtonStyle.success, custom_id="rescue_apply")
-    async def apply_button(self, interaction: discord.Interaction, button: Button):
-        applicant = interaction.user
-        vc = self.session.vc
-        owner = self.session.owner
-        guild = interaction.guild
-
-        print(f"✅ 立候補ボタン押下 → applicant={applicant.display_name}, owner={owner.display_name}, vc={vc.name}")
-
-        # --- 🔹 募集対象を判定 ---
-        has_princess = any(r.id == WAITING_PRINCESS_ROLE_ID for r in owner.roles)
-        target_role_id = WAITING_HERO_ROLE_ID if has_princess else WAITING_PRINCESS_ROLE_ID
-
         # --- ✅ 同陣営のみ立候補可能チェック ---
         if not any(r.id == target_role_id for r in applicant.roles):
             await interaction.response.send_message(
@@ -223,6 +162,98 @@ class RecruitView(View):
         embed = discord.Embed(
             color=discord.Color.yellow(),
             description=f"{applicant.mention} が {owner.mention} に立候補しました。"
+        )
+        await log_ch.send(embed=embed)
+        print("🪵 ログ送信完了")
+
+class PermitView(View):
+    """⑤ 『許可』ボタン"""
+    def __init__(self, bot, session: RescueSession, applicant: discord.Member):
+        super().__init__(timeout=300)
+        self.bot = bot
+        self.session = session
+        self.applicant = applicant
+        print(f"🧩 PermitView生成: applicant={applicant.display_name}, vc={session.vc.name}")
+
+    @discord.ui.button(
+        label="✅ 許可",
+        style=discord.ButtonStyle.primary,
+        custom_id="permit_button_dynamic"
+    )
+    async def permit_button(self, interaction: discord.Interaction, button: Button):
+        vc = self.session.vc
+        guild = self.session.vc.guild   # ← 修正ポイント！（DM対応）
+        owner = self.session.owner
+
+        print(f"🟢 Permitボタン押下検知: applicant={self.applicant.display_name}, vc={vc.name}")
+
+        # --- 🔹 VC権限付与 ---
+        await vc.set_permissions(
+            self.applicant,
+            view_channel=True,
+            connect=True,
+            speak=True,
+            use_voice_activation=True,
+            send_messages=True,
+            attach_files=True,
+            read_message_history=True
+        )
+        print("✅ VC権限追加成功！")
+
+        # --- 🔹 VC URLを生成 ---
+        vc_url = f"https://ptb.discord.com/channels/{guild.id}/{vc.id}"
+        print(f"🔗 VC URL: {vc_url}")
+
+        # --- 🔹 DM通知 ---
+        try:
+            await self.applicant.send(
+                f"✅ 運命の扉が開かれました！🚪\n"
+                f"🎧 VCに入室してください：\n{vc_url}"
+            )
+            dm_status = "📨 DM送信完了"
+            print("📩 DM送信成功！")
+        except discord.Forbidden:
+            dm_status = "⚠️ ユーザーがDMを拒否しています。"
+            print("⚠️ DM拒否設定のため送信不可。")
+        except Exception as e:
+            dm_status = f"⚠️ DM送信中にエラー: {e}"
+            print(f"❌ DM送信エラー: {type(e).__name__}: {e}")
+
+        # --- 🔹 公開通知（DM内は followup しか使えない） ---
+        try:
+            await interaction.response.send_message(
+                f"{self.applicant.mention} に救出を許可しました。{dm_status}",
+                ephemeral=True
+            )
+        except discord.InteractionResponded:
+            await interaction.followup.send(
+                f"{self.applicant.mention} に救出を許可しました。{dm_status}",
+                ephemeral=True
+            )
+        print("✅ 許可メッセージ送信完了")
+
+        # --- 🔹 ボタン削除処理 ---
+        try:
+            await interaction.message.edit(view=None)
+            print("🗑️ 許可ボタン削除完了")
+        except Exception as e:
+            print(f"⚠️ 許可ボタン削除失敗: {e}")
+
+        # --- 🔹 ボタン削除 ---
+        try:
+            if hasattr(self.session, "recruit_view_message"):
+                await self.session.recruit_view_message.edit(view=None)
+                print("🗑️ 募集通知（立候補ボタン）削除完了")
+            else:
+                print("⚠️ recruit_view_message が未設定でした")
+        except Exception as e:
+            print(f"⚠️ 立候補ボタン削除失敗: {type(e).__name__}: {e}")
+
+        # --- 🔹 ログ送信 ---
+        log_ch = guild.get_channel(ENCOUNT_LOG_TC_ID)
+        embed = discord.Embed(
+            color=discord.Color.yellow(),
+            description=f"{owner.mention} が {self.applicant.mention} とマッチングしました。\n🔗 [VCへジャンプ]({vc_url})"
         )
         await log_ch.send(embed=embed)
         print("🪵 ログ送信完了")
