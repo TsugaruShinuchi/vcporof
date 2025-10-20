@@ -145,7 +145,7 @@ class RecruitView(View):
             view = PermitView(self.bot, self.session, applicant)
             msg = await owner.send(
                 f"🚨 **救助要請VC**\n"
-                f"{owner.mention} さん！ {applicant.mention} さんが立候補しました！\n"
+                f"{owner.mention} さん！ {applicant.mention} ({applicant.display_name})さんが立候補しました！\n"
                 f"5分以内に許可してください👇",
                 view=view
             )
