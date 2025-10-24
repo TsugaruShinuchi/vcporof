@@ -18,13 +18,15 @@ GUILD_ID = int(os.getenv("GUILD_ID"))  # ギルドコマンド登録用
 
 class RescueSession:
     """VC と募集情報を管理する構造体"""
-    def __init__(self, owner: discord.Member, vc: discord.VoiceChannel, created_at: float):
+    def __init__(self, owner: discord.Member, vc: discord.VoiceChannel, created_at: float, is_named: bool = False):
         self.owner = owner
         self.vc = vc
         self.created_at = created_at
         self.joined = False
+        self.is_named = is_named  # ← 追加（記名募集フラグ）
         self.recruit_view: View | None = None
         self.recruit_msg: discord.Message | None = None
+
 
 class RescueRequestView(View):
     """①『救助要請』ボタン永続ビュー"""
@@ -32,7 +34,7 @@ class RescueRequestView(View):
         super().__init__(timeout=None)
         self.bot = bot
 
-    @discord.ui.button(label="🚨 救助要請", style=discord.ButtonStyle.danger, custom_id="rescue_request")
+    @discord.ui.button(label="🚨 匿名要請", style=discord.ButtonStyle.danger, custom_id="rescue_request")
     async def rescue_request(self, interaction: discord.Interaction, button: Button):
         try:
             print("✅ ボタンクリックイベント受信！")
@@ -92,18 +94,87 @@ class RescueRequestView(View):
         self.bot.active_sessions.setdefault(guild.id, []).append(sess)
         self.bot.loop.create_task(self._wait_for_join(sess, guild.id))
 
-    async def _wait_for_join(self, sess: RescueSession, guild_id: int):
-        await asyncio.sleep(5 * 60)
-        if not sess.joined:
+     # --- 🟢 記名募集ボタン ---
+   
+    @discord.ui.button(label="🟢 記名要請", style=discord.ButtonStyle.success, custom_id="named_recruit")
+    async def named_recruit(self, interaction: discord.Interaction, button: Button):
+        """🟢 記名募集ボタン：VC生成処理"""
+        try:
+            # ✅ 最初の応答を予約（これ以降は followup.send() を使う）
+            await interaction.response.defer(ephemeral=True)
+
+            print("✅ 記名募集ボタンクリックイベント受信！")
+
+            member = interaction.user
+            guild = interaction.guild
+            print(f"🟡 guild/user 取得OK → user={member.display_name}, guild={guild.name}")
+
+            # --- カテゴリー確認 ---
+            category = guild.get_channel(ENCOUNT_CATEGORY_ID)
+            if not category or not isinstance(category, discord.CategoryChannel):
+                raise ValueError(f"カテゴリーID {ENCOUNT_CATEGORY_ID} が見つかりません！")
+
+            # --- VC生成 ---
+            vc = await guild.create_voice_channel(
+                name=f"救助（記名）：{member.display_name}",
+                category=category,
+                overwrites={
+                    guild.default_role: discord.PermissionOverwrite(view_channel=False),
+                    member: discord.PermissionOverwrite(
+                        view_channel=True,
+                        connect=True,
+                        speak=True,
+                        use_voice_activation=True,
+                        send_messages=True,
+                        attach_files=True,
+                        read_message_history=True
+                    ),
+                    guild.me: discord.PermissionOverwrite(view_channel=True, connect=True)
+                },
+                reason="🟢 記名募集による仮VC生成"
+            )
+            print(f"✅ VC生成成功！ → {vc.name}")
+
+            # --- フォローアップ通知 ---
+            await interaction.followup.send("✅ 記名VCを生成しました。5分以内に入室してください。", ephemeral=True)
+
+            # --- ログ送信 ---
+            log_ch = guild.get_channel(ENCOUNT_LOG_TC_ID)
+            if log_ch:
+                embed = discord.Embed(
+                    color=discord.Color.green(),
+                    description=f"🟢 {member.mention}（{member.display_name}）が『記名募集』VCを生成しました。"
+                )
+                await log_ch.send(embed=embed)
+
+            # --- セッション登録 ---
+            sess = RescueSession(owner=member, vc=vc, created_at=asyncio.get_event_loop().time(), is_named=True)
+            self.bot.active_sessions.setdefault(guild.id, []).append(sess)
+
+            # --- 5分待機タスク起動 ---
+            self.bot.loop.create_task(self._wait_for_join(sess, guild.id))
+
+        except Exception as e:
+            import traceback
+            print("❌ named_recruit 内で例外発生！")
+            traceback.print_exc()
             try:
-                await sess.vc.delete(reason="入室なしのため削除")
+                await interaction.followup.send(f"❌ エラー発生: {type(e).__name__}: {e}", ephemeral=True)
             except:
                 pass
-            guild = self.bot.get_guild(guild_id)
-            log_ch = guild.get_channel(ENCOUNT_LOG_TC_ID)
-            embed = discord.Embed(color=discord.Color.red(), description=f"{sess.owner.mention} がVCに入室しませんでした。")
-            await log_ch.send(embed=embed)
-            self.bot.active_sessions[guild_id].remove(sess)
+    
+    async def _wait_for_join(self, sess: RescueSession, guild_id: int):
+            await asyncio.sleep(5 * 60)
+            if not sess.joined:
+                try:
+                    await sess.vc.delete(reason="入室なしのため削除")
+                except:
+                    pass
+                guild = self.bot.get_guild(guild_id)
+                log_ch = guild.get_channel(ENCOUNT_LOG_TC_ID)
+                embed = discord.Embed(color=discord.Color.red(), description=f"{sess.owner.mention} がVCに入室しませんでした。")
+                await log_ch.send(embed=embed)
+                self.bot.active_sessions[guild_id].remove(sess)
 
 class RecruitView(View):
     """④ 募集通知『立候補』ボタン"""
@@ -287,11 +358,6 @@ class EncountCog(commands.Cog):
         # 指定チャンネルに設置する場合（例：募集チャンネル）
         target_ch = interaction.channel  # フォールバック
         await target_ch.send("🚨 **救助要請はこちらから！**", view=view)
-        # await interaction.followup.send(
-        #     "🚨 **救助要請はこちらから！**",
-        #     view=view,
-        #     ephemeral=False
-        # )
         await interaction.followup.send("✅ 救助要請ボタンを設置しました。", ephemeral=True)
 
     @encount.error
@@ -322,16 +388,37 @@ class EncountCog(commands.Cog):
         has_princess = any(r.id == WAITING_PRINCESS_ROLE_ID for r in owner.roles)
         target_role_id = WAITING_HERO_ROLE_ID if has_princess else WAITING_PRINCESS_ROLE_ID
 
+        # --- 🟢 記名募集 or 🚨 通常救助要請 を分岐 ---
+        if sess.is_named:
+            recruit_message_text = (
+                f"👤 **募集主：{owner.display_name} さん** が救助を待っています！\n"
+                f"<@&{target_role_id}> の皆さん、立候補はこちらから！"
+            )
+        else:
+            recruit_message_text = f"<@&{target_role_id}> 各位、立候補はこちら！"
+
+        # --- ビュー作成 ---
         view = RecruitView(self.bot, sess)
         sess.recruit_view = view
-        msg = await recruit_ch.send(f"<@&{target_role_id}> 各位、立候補はこちら！", view=view)
+
+        # --- メッセージ送信 ---
+        msg = await recruit_ch.send(recruit_message_text, view=view)
         sess.recruit_msg = msg
 
+        # --- DM通知 ---
         await owner.send("募集開始しました！")
 
+        # --- ログ送信 ---
         log_ch = guild.get_channel(ENCOUNT_LOG_TC_ID)
-        embed = discord.Embed(color=discord.Color.blue(), description=f"{owner.mention} が募集開始。")
+        embed = discord.Embed(
+            color=discord.Color.blue(),
+            description=(
+                f"{'🟢' if sess.is_named else '🚨'} {owner.mention}（{owner.display_name}）が募集を開始しました。"
+            )
+        )
         await log_ch.send(embed=embed)
+
+        print(f"💬 {'記名募集' if sess.is_named else '匿名救助'}メッセージ送信完了: {owner.display_name}")
 
     # ==========================
     # 🧹 VC自動削除タスク
