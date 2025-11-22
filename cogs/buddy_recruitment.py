@@ -3,6 +3,8 @@ from discord import app_commands
 from discord.ext import commands
 import os
 import asyncpg
+from utils.db import DB
+
 
 ADMIN_ROLE_ID = int(os.getenv("ROLE_ADMIN_ID"))
 GUILD_ID = int(os.getenv("GUILD_ID"))
