@@ -16,7 +16,7 @@ class RecruitmentButton(discord.ui.Button):
         super().__init__(label="🔔募集", style=discord.ButtonStyle.primary, custom_id="recruitment_open")
 
     async def callback(self, interaction: discord.Interaction):
-        from cogs.modals import PartyRecruitmentModal
+        from cogs.buddy_modals import PartyRecruitmentModal
         await interaction.response.send_modal(PartyRecruitmentModal())
 
 class Recruitment(commands.Cog):

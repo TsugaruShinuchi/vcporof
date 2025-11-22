@@ -29,7 +29,7 @@ class ApplyCommentModal(discord.ui.Modal, title="応募メッセージを送信"
         self.author_id = author_id
 
     async def on_submit(self, interaction: discord.Interaction):
-        from cogs.handlers import handle_application_submission
+        from cogs.buddy_handlers import handle_application_submission
         await handle_application_submission(interaction, self.author_id, self.comment.value)
 
 class ApplyButton(discord.ui.Button):

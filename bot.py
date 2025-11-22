@@ -22,9 +22,9 @@ class MyBot(commands.Bot):
         print("✅ DB プールを初期化しました。")
 
         initial_extensions = [
-            # "cogs.recruitment",
-            # "cogs.modals",
-            # "cogs.handlers",
+            "cogs.buddy_recruitment",
+            "cogs.buddy_modals",
+            "cogs.buddy_handlers",
             "cogs.profile",
             "cogs.encount"
         ]

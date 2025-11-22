@@ -69,7 +69,7 @@ class ConfirmButton(discord.ui.Button):
         self.parent_view = parent_view
 
     async def callback(self, interaction: discord.Interaction):
-        from cogs.handlers import post_final_recruitment
+        from cogs.buddy_handlers import post_final_recruitment
         for item in self.parent_view.children:
             item.disabled = True
         await interaction.message.edit(view=self.parent_view)
