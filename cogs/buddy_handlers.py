@@ -137,7 +137,6 @@ async def post_final_recruitment(interaction: discord.Interaction, date: str, co
     # DMに削除ボタン付きで送信
     try:
         dm_view = discord.ui.View()
-        dm_view.add_item(DMDeleteButton(msg.id, recruitment_channel.id))
         await member.send(embed=embed, view=dm_view)
     except Exception as e:
         print(f"DM送信失敗: {e}")

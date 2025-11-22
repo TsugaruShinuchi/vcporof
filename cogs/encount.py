@@ -347,8 +347,9 @@ class EncountCog(commands.Cog):
     # ==========================
     # 🆕 /エンカウント コマンド
     # ==========================
+    @app_commands.guilds(discord.Object(id=GUILD_ID))
     @app_commands.command(name="エンカウント", description="救助要請ボタンを設置します（管理者専用）")
-    @app_commands.checks.has_permissions(administrator=True)
+    @app_commands.checks.default_permissions(administrator=True)
     async def encount(self, interaction: discord.Interaction):
         view = RescueRequestView(self.bot)
         await interaction.response.send_message(
