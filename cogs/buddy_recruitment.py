@@ -49,39 +49,44 @@ class DeleteRecruitButton(discord.ui.Button):
         )
 
     async def callback(self, interaction: discord.Interaction):
-        pool = await get_pool(interaction.client)
+        # DB.pool が初期化されていない場合は初期化
+        if DB.pool is None:
+            await DB.init_pool()
 
-        # DBから user_id に紐づく message_id を取る
-        row = await pool.fetchrow(
-            "SELECT message_id FROM recruit_messages WHERE user_id = $1",
-            interaction.user.id
-        )
+        # user_id に紐づく message_id を DB から探す
+        async with DB.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT message_id, channel_id FROM recruit_messages WHERE user_id = $1",
+                interaction.user.id
+            )
 
         if row is None:
             await interaction.response.send_message(
-                "あなたの募集データが見つかりませんでした。",
+                "あなたの募集が見つかりませんでした。",
                 ephemeral=True
             )
             return
 
         message_id = row["message_id"]
+        channel_id = row["channel_id"]
 
-        # メッセージ削除を試す
+        # メッセージ削除
         try:
-            msg = await interaction.channel.fetch_message(message_id)
-            await msg.delete()
-        except discord.NotFound:
+            channel = interaction.guild.get_channel(channel_id)
+            if channel is None:
+                channel = await interaction.guild.fetch_channel(channel_id)
+
+            message = await channel.fetch_message(message_id)
+            await message.delete()
+        except:
             await interaction.response.send_message(
-                "メッセージが既に存在しませんでした。",
+                "メッセージの取得または削除に失敗しました。",
                 ephemeral=True
             )
             return
 
-        # DBから消す
-        await pool.execute(
-            "DELETE FROM recruit_messages WHERE user_id = $1",
-            interaction.user.id
-        )
+        # DBからも削除
+        await DB.delete_recruit_message(message_id)
 
         await interaction.response.send_message(
             "あなたの募集メッセージを削除しました。",
