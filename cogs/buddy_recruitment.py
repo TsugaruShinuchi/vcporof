@@ -103,6 +103,7 @@ class DeleteRecruitButton(discord.ui.Button):
 class Recruitment(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.bot.add_view(RecruitmentView())
 
     @app_commands.guilds(discord.Object(id=GUILD_ID))
     @app_commands.command(name="バディ募集", description="募集用のEmbedを送信（管理者のみ）")
