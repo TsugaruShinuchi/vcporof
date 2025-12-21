@@ -40,7 +40,7 @@ class BumpCount(commands.Cog):
         description = embed.description or ""
         if not (
             "Bump done" in description
-            or "表示順をアップ" in description
+            or "表示順をアップしたよ :thumbsup:" in description
         ):
             return
 
