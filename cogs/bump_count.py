@@ -4,7 +4,7 @@ import asyncpg
 import asyncio
 import os
 
-DISBOARD_BOT_ID = 1358395771895939146
+DISBOARD_BOT_ID = 302050872383242240
 REMIND_AFTER = 60 * 60 * 2  # 2時間
 
 class BumpCount(commands.Cog):
