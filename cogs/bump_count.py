@@ -15,7 +15,7 @@ class BumpCount(commands.Cog):
 
     async def init_db(self):
         self.pool = await asyncpg.create_pool(
-            dsn=os.getenv("DATABASE_URL"),
+            dsn=os.getenv("POSTGRES_URI"),
             min_size=1,
             max_size=5
         )
