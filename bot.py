@@ -26,7 +26,8 @@ class MyBot(commands.Bot):
             "cogs.buddy_modals",
             "cogs.buddy_handlers",
             "cogs.profile",
-            "cogs.encount"
+            "cogs.encount",
+            "cogs.bump_count"
         ]
         for ext in initial_extensions:
             await self.load_extension(ext)
@@ -35,17 +36,6 @@ class MyBot(commands.Bot):
         guild = discord.Object(id=GUILD_ID)
         await self.tree.sync(guild=guild)
         print("✅ ギルドコマンドを同期しました。")
-
-        # from cogs.recruitment import RecruitmentView
-        # self.add_view(RecruitmentView())
-        # print(f"✅ DB プール初期化済: {self.profile_db_pool is not None}")
-
-        # from cogs.handlers import DMDeleteButton
-        # rows = await DB.get_all_recruit_messages()
-        # for row in rows:
-        #     view = discord.ui.View(timeout=None)
-        #     view.add_item(DMDeleteButton(row["message_id"], row["channel_id"]))
-        #     bot.add_view(view)
 
 # 正しく MyBot を使用
 bot = MyBot(command_prefix="!", intents=intents)
