@@ -63,7 +63,7 @@ class ProfileCog(commands.Cog):
         if before.channel == after.channel:
             return
 
-        print(f"🎧 VCチャンネル変化検出: {member} | before={before.channel} | after={after.channel}")
+        # print(f"🎧 VCチャンネル変化検出: {member} | before={before.channel} | after={after.channel}")
 
         # VC入室
         if not before.channel and after.channel:
@@ -91,7 +91,7 @@ class ProfileCog(commands.Cog):
                 try:
                     msg = await before.channel.fetch_message(msg_id)
                     await msg.delete()
-                    print(f"🗑️ Embed削除: message_id={msg_id}")
+                    # print(f"🗑️ Embed削除: message_id={msg_id}")
                 except Exception as e:
                     print(f"⚠️ Embed削除失敗: {e}")
 
@@ -110,7 +110,7 @@ class ProfileCog(commands.Cog):
                 try:
                     msg = await before.channel.fetch_message(msg_id)
                     await msg.delete()
-                    print(f"🗑️ Embed削除: message_id={msg_id}")
+                    # print(f"🗑️ Embed削除: message_id={msg_id}")
                 except Exception as e:
                     print(f"⚠️ Embed削除失敗: {e}")
             return
@@ -148,7 +148,7 @@ class ProfileCog(commands.Cog):
                 )
                 try:
                     sent = await channel.send(embed=embed)
-                    print(f"✅ Embed送信完了: message_id={sent.id}")
+                    # print(f"✅ Embed送信完了: message_id={sent.id}")
                     self.embed_cache[(member.guild.id, member.id)] = sent.id
                 except Exception as e:
                     print(f"❌ Embed送信失敗: {e}")
