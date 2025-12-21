@@ -2,6 +2,7 @@
 
 import discord
 from discord.ext import commands
+from datetime import datetime, timedelta
 
 DISBOARD_BOT_ID = 302050872383242240
 SUCCESS_TEXT = "表示順をアップしたよ"
@@ -12,35 +13,39 @@ class BumpListener(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        # Bot 自身や他人の雑談は無視
-        if message.author.bot is False:
+        # 人間の発言は無視
+        if not message.author.bot:
             return
 
-        # DISBOARD Bot 以外は無視
+        # DISBOARD 以外は無視
         if message.author.id != DISBOARD_BOT_ID:
             return
 
-        # 成功文言を含んでいるか
-        if SUCCESS_TEXT in message.content:
-            await self.on_bump_success(message)
+        # 成功文言チェック
+        if SUCCESS_TEXT not in message.content:
+            return
 
-    async def on_bump_success(self, message: discord.Message):
-        guild = message.guild
-        channel = message.channel
+        await self.send_success_embed(message)
 
-        # ログ用。ここをDB加算やロール付与に差し替える
-        print(
-            f"[BUMP SUCCESS] "
-            f"Guild={guild.name if guild else 'DM'} "
-            f"Channel={channel.name} "
-            f"MessageID={message.id}"
+    async def send_success_embed(self, message: discord.Message):
+        next_bump = datetime.utcnow() + timedelta(hours=2)
+
+        embed = discord.Embed(
+            title="🚀 BUMP 成功！",
+            description="サーバーの表示順がアップしました。",
+            color=discord.Color.green(),
+            timestamp=datetime.utcnow()
         )
 
-        # 例：リアクション付ける
-        try:
-            await message.add_reaction("👍")
-        except discord.Forbidden:
-            pass
+        embed.add_field(
+            name="⏰ 次のBUMP可能時刻",
+            value=f"<t:{int(next_bump.timestamp())}:R>",
+            inline=False
+        )
+
+        embed.set_footer(text="DISBOARD Bump Tracker")
+
+        await message.channel.send(embed=embed)
 
 
 async def setup(bot: commands.Bot):
