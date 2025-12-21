@@ -13,16 +13,19 @@ class BumpListener(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        # 人間の発言は無視
-        if not message.author.bot:
-            return
-
-        # DISBOARD 以外は無視
+        # DISBOARD Bot 以外は無視
         if message.author.id != DISBOARD_BOT_ID:
             return
 
-        # 成功文言チェック
-        if SUCCESS_TEXT not in message.content:
+        # Embed が無いなら違う
+        if not message.embeds:
+            return
+
+        embed = message.embeds[0]
+        description = embed.description or ""
+
+        # 成功文言チェック（embed.description）
+        if SUCCESS_TEXT not in description:
             return
 
         await self.send_success_embed(message)
