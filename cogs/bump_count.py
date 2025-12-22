@@ -13,11 +13,11 @@ BUMP_COOLDOWN = 60 * 60 * 2  # 2時間
 class BumpListener(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.scheduled_reminders: dict[int, asyncio.Task] = {}
+        # channel_id: (task, user_id)
+        self.scheduled_reminders: dict[int, tuple[asyncio.Task, int | None]] = {}
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        # DISBOARD Bot 以外は無視
         if message.author.id != DISBOARD_BOT_ID:
             return
 
@@ -30,10 +30,9 @@ class BumpListener(commands.Cog):
         if SUCCESS_TEXT not in description:
             return
 
-        member = self.extract_executor(message, embed)
+        user_id = self.extract_executor_id(embed)
 
-        # 成功通知
-        await self.send_success_embed(message, member)
+        await self.send_success_embed(message, user_id)
 
         channel_id = message.channel.id
 
@@ -41,17 +40,12 @@ class BumpListener(commands.Cog):
         if channel_id in self.scheduled_reminders:
             return
 
-        # 新規スケジュール
         task = asyncio.create_task(
-            self.bump_reminder(message.channel, member)
+            self.bump_reminder(message.guild, message.channel, user_id)
         )
-        self.scheduled_reminders[channel_id] = task
+        self.scheduled_reminders[channel_id] = (task, user_id)
 
-    def extract_executor(
-        self,
-        message: discord.Message,
-        embed: discord.Embed
-    ) -> discord.Member | None:
+    def extract_executor_id(self, embed: discord.Embed) -> int | None:
         if not embed.footer or not embed.footer.text:
             return None
 
@@ -59,21 +53,18 @@ class BumpListener(commands.Cog):
 
         match = re.search(r"<@!?(\d+)>", footer)
         if match:
-            return message.guild.get_member(int(match.group(1)))
+            return int(match.group(1))
 
-        name = footer.replace("Bumped by", "").strip()
-        return discord.utils.find(
-            lambda m: m.display_name == name or m.name == name,
-            message.guild.members
-        )
+        return None  # 名前ベースは捨てる。精度が低いから。
 
     async def send_success_embed(
         self,
         message: discord.Message,
-        member: discord.Member | None
+        user_id: int | None
     ):
         next_bump = datetime.utcnow() + timedelta(hours=2)
-        mention = member.mention if member else "誰か"
+
+        mention = f"<@{user_id}>" if user_id else "誰か"
 
         embed = discord.Embed(
             title="🚀 BUMP 成功！",
@@ -94,12 +85,14 @@ class BumpListener(commands.Cog):
 
     async def bump_reminder(
         self,
+        guild: discord.Guild,
         channel: discord.TextChannel,
-        member: discord.Member | None
+        user_id: int | None
     ):
         try:
             await asyncio.sleep(BUMP_COOLDOWN)
 
+            member = guild.get_member(user_id) if user_id else None
             mention = member.mention if member else "@here"
 
             embed = discord.Embed(
@@ -112,7 +105,6 @@ class BumpListener(commands.Cog):
             await channel.send(embed=embed)
 
         finally:
-            # 通知後 or 途中キャンセルでも必ず消す
             self.scheduled_reminders.pop(channel.id, None)
 
 
