@@ -4,11 +4,11 @@ import discord
 from discord.ext import commands
 from datetime import datetime, timedelta
 import asyncio
-import re
 
 DISBOARD_BOT_ID = 302050872383242240
 SUCCESS_TEXT = "表示順をアップしたよ"
 BUMP_COOLDOWN = 60 * 60 * 2  # 2時間
+
 
 class BumpListener(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -18,6 +18,7 @@ class BumpListener(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
+        # DISBOARD以外は無視
         if message.author.id != DISBOARD_BOT_ID:
             return
 
@@ -30,7 +31,10 @@ class BumpListener(commands.Cog):
         if SUCCESS_TEXT not in description:
             return
 
-        user_id = self.extract_executor_id(embed)
+        # ★ここが今回の本題
+        user_id = None
+        if message.interaction and message.interaction.user:
+            user_id = message.interaction.user.id
 
         await self.send_success_embed(message, user_id)
 
@@ -45,24 +49,12 @@ class BumpListener(commands.Cog):
         )
         self.scheduled_reminders[channel_id] = (task, user_id)
 
-    def extract_executor_id(self, embed: discord.Embed) -> int | None:
-        if not embed.footer or not embed.footer.text:
-            return None
-
-        footer = embed.footer.text
-
-        match = re.search(r"<@!?(\d+)>", footer)
-        if match:
-            return int(match.group(1))
-
-        return None  # 名前ベースは捨てる。精度が低いから。
-
     async def send_success_embed(
         self,
         message: discord.Message,
         user_id: int | None
     ):
-        next_bump = datetime.utcnow() + timedelta(hours=2)
+        next_bump = datetime.utcnow() + timedelta(seconds=BUMP_COOLDOWN)
 
         mention = f"<@{user_id}>" if user_id else "誰か"
 
