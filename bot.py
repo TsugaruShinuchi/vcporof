@@ -18,7 +18,9 @@ print("📦 POSTGRES_URI =", os.getenv("POSTGRES_URI"))
 class MyBot(commands.Bot):
     async def setup_hook(self):
         db_pool = await DB.init_pool()
-        self.profile_db_pool = db_pool
+
+        self.db = db_pool                  # bump_count 用
+        self.profile_db_pool = db_pool     # 既存COG互換用
         print("✅ DB プールを初期化しました。")
 
         initial_extensions = [
