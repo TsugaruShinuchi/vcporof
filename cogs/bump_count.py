@@ -18,7 +18,6 @@ class BumpListener(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        # DISBOARD以外は無視
         if message.author.id != DISBOARD_BOT_ID:
             return
 
@@ -31,16 +30,35 @@ class BumpListener(commands.Cog):
         if SUCCESS_TEXT not in description:
             return
 
-        # ★ここが今回の本題
-        user_id = None
-        if message.interaction and message.interaction.user:
-            user_id = message.interaction.user.id
+        # interaction 取得（賭け）
+        if not message.interaction or not message.interaction.user:
+            # 記録しない。割り切り。
+            await self.send_success_embed(message, None)
+            return
 
+        interaction_id = message.interaction.id
+        user_id = message.interaction.user.id
+
+        # ===== DB処理 =====
+        async with self.bot.db.acquire() as conn:
+
+            # ③ bump_amount を加算
+            await conn.execute(
+                """
+                INSERT INTO bump_amount (user_id, amount)
+                VALUES ($1, 1)
+                ON CONFLICT (user_id)
+                DO UPDATE SET
+                    amount = bump_amount.amount + 1,
+                    updated_at = NOW()
+                """,
+                user_id
+            )
+
+        # ===== 表示＆リマインド =====
         await self.send_success_embed(message, user_id)
 
         channel_id = message.channel.id
-
-        # すでにスケジュール済みなら何もしない
         if channel_id in self.scheduled_reminders:
             return
 
@@ -55,7 +73,6 @@ class BumpListener(commands.Cog):
         user_id: int | None
     ):
         next_bump = datetime.utcnow() + timedelta(seconds=BUMP_COOLDOWN)
-
         mention = f"<@{user_id}>" if user_id else "誰か"
 
         embed = discord.Embed(
