@@ -50,7 +50,6 @@ class BumpListener(commands.Cog):
                 ON CONFLICT (user_id)
                 DO UPDATE SET
                     amount = bump_amount.amount + 1,
-                    updated_at = NOW()
                 """,
                 user_id
             )
