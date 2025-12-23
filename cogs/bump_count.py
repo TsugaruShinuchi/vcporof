@@ -49,7 +49,7 @@ class BumpListener(commands.Cog):
                 VALUES ($1, 1)
                 ON CONFLICT (user_id)
                 DO UPDATE SET
-                    amount = bump_amount.amount + 1,
+                amount = bump_amount.amount + 1;
                 """,
                 user_id
             )
