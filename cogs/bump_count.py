@@ -2,6 +2,7 @@
 
 import discord
 from discord.ext import commands
+from discord import app_commands
 from datetime import datetime, timedelta
 import asyncio
 
@@ -16,9 +17,11 @@ class BumpListener(commands.Cog):
         # channel_id: (task, user_id)
         self.scheduled_reminders: dict[int, tuple[asyncio.Task, int | None]] = {}
 
+    # ===============================
+    # BUMP 検知
+    # ===============================
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        # DISBOARD 以外は無視
         if message.author.id != DISBOARD_BOT_ID:
             return
 
@@ -28,11 +31,10 @@ class BumpListener(commands.Cog):
         embed = message.embeds[0]
         description = embed.description or ""
 
-        # 成功メッセージ判定
         if SUCCESS_TEXT not in description:
             return
 
-        # interaction_metadata を優先（interaction は非推奨）
+        # interaction_metadata 優先
         user_id: int | None = None
         metadata = getattr(message, "interaction_metadata", None)
         if metadata and metadata.user:
@@ -56,10 +58,10 @@ class BumpListener(commands.Cog):
                 )
                 current_amount = row["amount"]
 
-        # ===== 成功メッセージ表示 =====
+        # ===== 成功メッセージ =====
         await self.send_success_embed(message, user_id, current_amount)
 
-        # ===== リマインド予約 =====
+        # ===== リマインド =====
         channel_id = message.channel.id
         if channel_id in self.scheduled_reminders:
             return
@@ -69,6 +71,9 @@ class BumpListener(commands.Cog):
         )
         self.scheduled_reminders[channel_id] = (task, user_id)
 
+    # ===============================
+    # 成功 Embed
+    # ===============================
     async def send_success_embed(
         self,
         message: discord.Message,
@@ -77,6 +82,7 @@ class BumpListener(commands.Cog):
     ):
         next_bump = datetime.utcnow() + timedelta(seconds=BUMP_COOLDOWN)
         mention = f"<@{user_id}>" if user_id else "誰か"
+
         amount_text = (
             f"🎉 **{amount} 回目の BUMP！**"
             if amount is not None
@@ -100,6 +106,9 @@ class BumpListener(commands.Cog):
 
         await message.channel.send(embed=embed)
 
+    # ===============================
+    # リマインド
+    # ===============================
     async def bump_reminder(
         self,
         guild: discord.Guild,
@@ -123,6 +132,54 @@ class BumpListener(commands.Cog):
 
         finally:
             self.scheduled_reminders.pop(channel.id, None)
+
+    # ===============================
+    # /bump_rank コマンド
+    # ===============================
+    @app_commands.command(name="bump_rank", description="BUMP 回数ランキングを表示します")
+    async def bump_rank(self, interaction: discord.Interaction):
+        async with self.bot.db.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT user_id, amount
+                FROM bump_amount
+                ORDER BY amount DESC
+                LIMIT 10;
+                """
+            )
+
+        if not rows:
+            await interaction.response.send_message(
+                "まだ誰も BUMP してない。平和だね。",
+                ephemeral=True
+            )
+            return
+
+        guild = interaction.guild
+        lines = []
+
+        for i, row in enumerate(rows, start=1):
+            member = guild.get_member(row["user_id"]) if guild else None
+
+            if member:
+                name = member.display_name
+                mention = member.mention
+            else:
+                name = "不明な冒険者"
+                mention = f"<@{row['user_id']}>"
+
+            lines.append(
+                f"**{i}.** {name}（{mention}） ― `{row['amount']}` 回"
+            )
+
+        embed = discord.Embed(
+            title="🏆 BUMP ランキング TOP10",
+            description="\n".join(lines),
+            color=discord.Color.gold(),
+            timestamp=datetime.utcnow()
+        )
+
+        await interaction.response.send_message(embed=embed)
 
 
 async def setup(bot: commands.Bot):
