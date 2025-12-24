@@ -136,7 +136,7 @@ class BumpListener(commands.Cog):
 
             embed = discord.Embed(
                 title="⏰ BUMP の時間！",
-                description=f"{mention} `/bump` の時間だよ。",
+                description=f"`/bump` の時間だよ。",
                 color=discord.Color.orange(),
                 timestamp=datetime.utcnow()
             )
