@@ -136,7 +136,7 @@ class BumpListener(commands.Cog):
     # ===============================
     # /bump_rank コマンド
     # ===============================
-    @app_commands.command(name="bump_rank", description="BUMP 回数ランキングを表示します")
+    @app_commands.command(name="bumprank", description="BUMP 回数ランキングを表示します")
     async def bump_rank(self, interaction: discord.Interaction):
         async with self.bot.db.acquire() as conn:
             rows = await conn.fetch(
