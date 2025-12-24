@@ -22,6 +22,7 @@ class BumpListener(commands.Cog):
     # ===============================
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
+        # DISBOARD 以外は無視
         if message.author.id != DISBOARD_BOT_ID:
             return
 
@@ -31,6 +32,7 @@ class BumpListener(commands.Cog):
         embed = message.embeds[0]
         description = embed.description or ""
 
+        # 成功メッセージ判定
         if SUCCESS_TEXT not in description:
             return
 
@@ -81,7 +83,14 @@ class BumpListener(commands.Cog):
         amount: int | None
     ):
         next_bump = datetime.utcnow() + timedelta(seconds=BUMP_COOLDOWN)
-        mention = f"<@{user_id}>" if user_id else "誰か"
+
+        member = (
+            message.guild.get_member(user_id)
+            if user_id and message.guild
+            else None
+        )
+
+        mention = member.mention if member else "誰か"
 
         amount_text = (
             f"🎉 **{amount} 回目の BUMP！**"
@@ -101,6 +110,10 @@ class BumpListener(commands.Cog):
             value=f"<t:{int(next_bump.timestamp())}:R>",
             inline=False
         )
+
+        # 実行者アイコン（中サイズ）
+        if member and member.display_avatar:
+            embed.set_thumbnail(url=member.display_avatar.url)
 
         embed.set_footer(text="DISBOARD Bump Tracker")
 
@@ -134,12 +147,19 @@ class BumpListener(commands.Cog):
             self.scheduled_reminders.pop(channel.id, None)
 
     # ===============================
-    # /bump_rank コマンド
+    # /bumprank ギルドコマンド
     # ===============================
-    @app_commands.command(name="bumprank", description="BUMP 回数ランキングを表示します")
+    @app_commands.command(
+        name="bumprank",
+        description="BUMP 回数ランキングを表示します"
+    )
+    @app_commands.guild_only()
     async def bump_rank(self, interaction: discord.Interaction):
+        user_id = interaction.user.id
+        guild = interaction.guild
+
         async with self.bot.db.acquire() as conn:
-            rows = await conn.fetch(
+            top_rows = await conn.fetch(
                 """
                 SELECT user_id, amount
                 FROM bump_amount
@@ -148,17 +168,35 @@ class BumpListener(commands.Cog):
                 """
             )
 
-        if not rows:
-            await interaction.response.send_message(
-                "まだ誰も BUMP してない。平和だね。",
-                ephemeral=True
-            )
-            return
+            if not top_rows:
+                await interaction.response.send_message(
+                    "まだ誰も BUMP してない。静かすぎる。",
+                    ephemeral=True
+                )
+                return
 
-        guild = interaction.guild
+            top_user_ids = [r["user_id"] for r in top_rows]
+            is_in_top10 = user_id in top_user_ids
+
+            user_rank_row = None
+            if not is_in_top10:
+                user_rank_row = await conn.fetchrow(
+                    """
+                    SELECT rank, amount FROM (
+                        SELECT
+                            user_id,
+                            amount,
+                            RANK() OVER (ORDER BY amount DESC) AS rank
+                        FROM bump_amount
+                    ) t
+                    WHERE user_id = $1;
+                    """,
+                    user_id
+                )
+
         lines = []
 
-        for i, row in enumerate(rows, start=1):
+        for i, row in enumerate(top_rows, start=1):
             member = guild.get_member(row["user_id"]) if guild else None
 
             if member:
@@ -170,6 +208,17 @@ class BumpListener(commands.Cog):
 
             lines.append(
                 f"**{i}.** {name}（{mention}） ― `{row['amount']}` 回"
+            )
+
+        # 実行者がTOP10外なら追記
+        if user_rank_row:
+            member = guild.get_member(user_id)
+            name = member.display_name if member else interaction.user.name
+
+            lines.append("\n――――――――――")
+            lines.append(
+                f"**あなたの順位：{user_rank_row['rank']} 位**\n"
+                f"{name}（{interaction.user.mention}） ― `{user_rank_row['amount']}` 回"
             )
 
         embed = discord.Embed(
