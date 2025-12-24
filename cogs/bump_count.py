@@ -18,6 +18,7 @@ class BumpListener(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
+        # DISBOARD 以外は無視
         if message.author.id != DISBOARD_BOT_ID:
             return
 
@@ -27,36 +28,38 @@ class BumpListener(commands.Cog):
         embed = message.embeds[0]
         description = embed.description or ""
 
+        # 成功メッセージ判定
         if SUCCESS_TEXT not in description:
             return
 
-        # interaction 取得（賭け）
-        if not message.interaction or not message.interaction.user:
-            # 記録しない。割り切り。
-            await self.send_success_embed(message, None)
-            return
-
-        interaction_id = message.interaction.id
-        user_id = message.interaction.user.id
+        # interaction_metadata を優先（interaction は非推奨）
+        user_id: int | None = None
+        metadata = getattr(message, "interaction_metadata", None)
+        if metadata and metadata.user:
+            user_id = metadata.user.id
 
         # ===== DB処理 =====
-        async with self.bot.db.acquire() as conn:
+        current_amount: int | None = None
 
-            # ③ bump_amount を加算
-            await conn.execute(
-                """
-                INSERT INTO bump_amount (user_id, amount)
-                VALUES ($1, 1)
-                ON CONFLICT (user_id)
-                DO UPDATE SET
-                amount = bump_amount.amount + 1;
-                """,
-                user_id
-            )
+        if user_id is not None:
+            async with self.bot.db.acquire() as conn:
+                row = await conn.fetchrow(
+                    """
+                    INSERT INTO bump_amount (user_id, amount)
+                    VALUES ($1, 1)
+                    ON CONFLICT (user_id)
+                    DO UPDATE SET
+                        amount = bump_amount.amount + 1
+                    RETURNING amount;
+                    """,
+                    user_id
+                )
+                current_amount = row["amount"]
 
-        # ===== 表示＆リマインド =====
-        await self.send_success_embed(message, user_id)
+        # ===== 成功メッセージ表示 =====
+        await self.send_success_embed(message, user_id, current_amount)
 
+        # ===== リマインド予約 =====
         channel_id = message.channel.id
         if channel_id in self.scheduled_reminders:
             return
@@ -69,14 +72,20 @@ class BumpListener(commands.Cog):
     async def send_success_embed(
         self,
         message: discord.Message,
-        user_id: int | None
+        user_id: int | None,
+        amount: int | None
     ):
         next_bump = datetime.utcnow() + timedelta(seconds=BUMP_COOLDOWN)
         mention = f"<@{user_id}>" if user_id else "誰か"
+        amount_text = (
+            f"🎉 **{amount} 回目の BUMP！**"
+            if amount is not None
+            else "🎉 **BUMP 成功！**"
+        )
 
         embed = discord.Embed(
             title="🚀 BUMP 成功！",
-            description=f"{mention} が /bump を実行しました。",
+            description=f"{mention} が /bump を実行しました。\n\n{amount_text}",
             color=discord.Color.green(),
             timestamp=datetime.utcnow()
         )
@@ -105,7 +114,7 @@ class BumpListener(commands.Cog):
 
             embed = discord.Embed(
                 title="⏰ BUMP の時間！",
-                description=f"{mention} そろそろ `/bump` できるよ。",
+                description=f"{mention} `/bump` の時間だよ。",
                 color=discord.Color.orange(),
                 timestamp=datetime.utcnow()
             )
