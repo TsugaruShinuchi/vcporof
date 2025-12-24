@@ -36,6 +36,7 @@ class MyBot(commands.Bot):
         print("✅ Cogs を登録しました。")
 
         guild = discord.Object(id=GUILD_ID)
+        self.tree.copy_global_to(guild=guild)
         await self.tree.sync(guild=guild)
         print("✅ ギルドコマンドを同期しました。")
 
