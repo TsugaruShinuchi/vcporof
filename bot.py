@@ -29,7 +29,8 @@ class MyBot(commands.Bot):
             "cogs.buddy_handlers",
             "cogs.profile",
             "cogs.encount",
-            "cogs.bump_count"
+            "cogs.bump_count",
+            "cogs.gacha"
         ]
         for ext in initial_extensions:
             await self.load_extension(ext)
