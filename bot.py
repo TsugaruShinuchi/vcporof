@@ -30,7 +30,7 @@ class MyBot(commands.Bot):
             "cogs.profile",
             "cogs.encount",
             "cogs.bump_count",
-            "cogs.gacha"
+            "cogs.gacha",
             "cogs.vc_counter"
         ]
         for ext in initial_extensions:
