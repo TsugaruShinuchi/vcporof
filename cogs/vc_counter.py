@@ -72,3 +72,7 @@ class VCCounter(commands.Cog):
     async def update_vc_command_error(self, interaction: discord.Interaction, error):
         if isinstance(error, app_commands.errors.MissingPermissions):
             await interaction.followup.send("❌ このコマンドは管理者のみ使用できます。", ephemeral=True)
+
+async def setup(bot: commands.Bot):
+    await bot.add_cog(VCCounter(bot))
+
