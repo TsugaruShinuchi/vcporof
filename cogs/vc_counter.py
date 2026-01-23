@@ -18,6 +18,7 @@ class VCCounter(commands.Cog):
     async def _update(self, guild: discord.Guild):
         # チャンネル取得（Noneガード）
         matching_ch = guild.get_channel(1464186246535315564)
+        gacha_ch = guild.get_channel(1459246559324668057)
         if matching_ch is None:
             print("⚠️ matching channel not found")
             return
@@ -29,20 +30,24 @@ class VCCounter(commands.Cog):
                 async with db.acquire() as conn:
                     matching_total = await conn.fetchval("SELECT COUNT(*) FROM matching_choose")
                     matching_kotsu = await conn.fetchval('SELECT COUNT(*) FROM matching_choose WHERE "check" = 1')
+                    gacha_total = await conn.fetchval("SELECT COUNT(*) FROM gacha_log")
             else:
                 conn: asyncpg.Connection = db
                 matching_total = await conn.fetchval("SELECT COUNT(*) FROM matching_choose")
                 matching_kotsu = await conn.fetchval('SELECT COUNT(*) FROM matching_choose WHERE "check" = 1')
+                gacha_total = await conn.fetchval("SELECT COUNT(*) FROM gacha_log")
         except Exception as e:
             print(f"❌ DB error: {e}")
             return
 
         new_name = f"👩‍❤️‍💋‍👨マッチ：{matching_total}回｜個通数：{matching_kotsu}"
+        gacha_name = f"🎰ガチャ：{gacha_total}回"
 
         # 変更があるときだけ編集（レート制限＆無駄API削減）
         try:
             if matching_ch.name != new_name:
                 await matching_ch.edit(name=new_name)
+                await matching_ch.edit(name=gacha_name)
             print(f"✅ {guild.name} のVC名を更新しました。")
         except discord.Forbidden:
             print("❌ 権限不足でチャンネル名を変更できません")
