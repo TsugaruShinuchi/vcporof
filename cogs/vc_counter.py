@@ -18,6 +18,7 @@ class VCCounter(commands.Cog):
     async def _update(self, guild: discord.Guild):
         matching_ch = guild.get_channel(1464186246535315564)
         gacha_ch = guild.get_channel(1459246559324668057)
+        blackjack = guild.get_channel(1466648900768239722)
 
         if matching_ch is None or gacha_ch is None:
             print("⚠️ channel not found")
@@ -29,17 +30,19 @@ class VCCounter(commands.Cog):
                 async with db.acquire() as conn:
                     row = await conn.fetchrow("""
                         SELECT
-                          (SELECT COUNT(*) FROM matching_choose) AS matching_total,
-                          (SELECT COUNT(*) FROM matching_choose WHERE "check" = 1) AS matching_kotsu,
-                          (SELECT COUNT(*) FROM gacha_log) AS gacha_total
+                        (SELECT COUNT(*) FROM matching_choose) AS matching_total,
+                        (SELECT COUNT(*) FROM matching_choose WHERE "check" = 1) AS matching_kotsu,
+                        (SELECT COUNT(*) FROM gacha_log) AS gacha_total,
+                        (SELECT SUM(amount) FROM blackjack_record) AS blackjack_total
                     """)
             else:
                 conn: asyncpg.Connection = db
                 row = await conn.fetchrow("""
                     SELECT
-                      (SELECT COUNT(*) FROM matching_choose) AS matching_total,
-                      (SELECT COUNT(*) FROM matching_choose WHERE "check" = 1) AS matching_kotsu,
-                      (SELECT COUNT(*) FROM gacha_log) AS gacha_total
+                    (SELECT COUNT(*) FROM matching_choose) AS matching_total,
+                    (SELECT COUNT(*) FROM matching_choose WHERE "check" = 1) AS matching_kotsu,
+                    (SELECT COUNT(*) FROM gacha_log) AS gacha_total,
+                    (SELECT SUM(amount) FROM blackjack_record) AS blackjack_total
                 """)
         except Exception as e:
             print(f"❌ DB error: {e}")
@@ -47,12 +50,15 @@ class VCCounter(commands.Cog):
 
         new_name = f"👩‍❤️‍💋‍👨マッチ：{row['matching_total']}回｜個通数：{row['matching_kotsu']}"
         gacha_name = f"🎰ガチャ：{row['gacha_total']}回"
+        blackjack = f"🃏ブラックジャック：{row['blackjack_total']}"
 
         try:
             if matching_ch.name != new_name:
                 await matching_ch.edit(name=new_name)
             if gacha_ch.name != gacha_name:
                 await gacha_ch.edit(name=gacha_name)
+            if blackjack.name != blackjack:
+                await blackjack.edit(name=blackjack)
 
             print(f"✅ {guild.name} のVC名を更新しました。")
         except discord.Forbidden:
