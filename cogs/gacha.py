@@ -256,7 +256,7 @@ class GachaCog(commands.Cog):
                         gl.user_id AS owner_id,
                         COUNT(DISTINCT gl.id) AS owned_count
                     FROM gacha_log g
-                    JOIN gacha_list gl ON gl.id = g.gacha_id
+                    JOIN gacha_list gl ON gl.id = g.gacha_list_id
                     WHERE g.user_id = $1
                     GROUP BY gl.user_id
                 )
