@@ -271,7 +271,27 @@ class GachaCog(commands.Cog):
                 interaction.user.id
             )
 
+        # ===== 3) トータル所持率 =====
+            total_all = await conn.fetchval(
+                "SELECT COUNT(*) FROM gacha_list"
+            )
+            owned_all = await conn.fetchval(
+                f"""
+                SELECT COUNT(*)
+                FROM gacha_log 
+                WHERE user_id = $1;
+                """,
+                interaction.user.id
+            )
+
         lines = []
+        
+        total_rate = (owned_all / total_all * 100) if total_all else 0
+        lines.append(
+            f"📊 **トータル所持率**：{owned_all}/{total_all}（{total_rate:.1f}%）"
+        )
+        lines.append("")
+
         for r in rows:
             owner_id = r["owner_id"]
             owned = r["owned_count"]
