@@ -242,17 +242,59 @@ class GachaCog(commands.Cog):
     # ------------------------------
     async def show_completion(self, interaction: discord.Interaction):
         async with self.pool.acquire() as conn:
-            total = await conn.fetchval("SELECT COUNT(*) FROM gacha_list")
-            owned = await conn.fetchval(
-                "SELECT COUNT(*) FROM gacha_log WHERE user_id=$1",
+            rows = await conn.fetch(
+                """
+                WITH totals AS (
+                    SELECT
+                        user_id AS owner_id,
+                        COUNT(*) AS total_count
+                    FROM gacha_list
+                    GROUP BY user_id
+                ),
+                owned AS (
+                    SELECT
+                        gl.user_id AS owner_id,
+                        COUNT(DISTINCT gl.id) AS owned_count
+                    FROM gacha_log g
+                    JOIN gacha_list gl ON gl.id = g.gacha_id
+                    WHERE g.user_id = $1
+                    GROUP BY gl.user_id
+                )
+                SELECT
+                    t.owner_id,
+                    COALESCE(o.owned_count, 0) AS owned_count,
+                    t.total_count
+                FROM totals t
+                LEFT JOIN owned o ON o.owner_id = t.owner_id
+                ORDER BY (COALESCE(o.owned_count, 0)::float / t.total_count) DESC
+                """,
                 interaction.user.id
             )
 
-        rate = (owned / total * 100) if total else 0
+        lines = []
+        for r in rows:
+            owner_id = r["owner_id"]
+            owned = r["owned_count"]
+            total = r["total_count"]
+            rate = (owned / total * 100) if total else 0
+
+            member = interaction.guild.get_member(owner_id)
+            if member is None:
+                try:
+                    member = await interaction.guild.fetch_member(owner_id)
+                except discord.NotFound:
+                    member = None
+
+            owner_name = member.display_name if member else str(owner_id)
+            lines.append(f"{owner_name}：{owned}/{total}（{rate:.1f}%）")
+
+        text = "\n".join(lines) if lines else "データがありません。"
+
         await interaction.response.send_message(
-            f"コンプ率：{owned}/{total}（{rate:.1f}%）",
+            text,
             ephemeral=True
         )
+
 
     # ------------------------------
     # 提供者収益
