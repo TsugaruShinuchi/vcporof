@@ -35,7 +35,7 @@ class VCCounter(commands.Cog):
                         (SELECT COUNT(*) FROM matching_choose WHERE "check" = 1) AS matching_kotsu,
                         (SELECT COUNT(*) FROM gacha_log) AS gacha_total,
                         (SELECT SUM(amount) FROM blackjack_record) AS blackjack_total,
-                        (SELECT SUM(amount) FROM hancho_record) AS chohan_total,
+                        (SELECT SUM(amount) FROM hancho_record) AS chohan_total
                     """)
             else:
                 conn: asyncpg.Connection = db
@@ -44,8 +44,8 @@ class VCCounter(commands.Cog):
                     (SELECT COUNT(*) FROM matching_choose) AS matching_total,
                     (SELECT COUNT(*) FROM matching_choose WHERE "check" = 1) AS matching_kotsu,
                     (SELECT COUNT(*) FROM gacha_log) AS gacha_total,
-                    (SELECT SUM(amount) FROM blackjack_record) AS blackjack_total
-                    (SELECT SUM(amount) FROM hancho_record) AS chohan_total,
+                    (SELECT SUM(amount) FROM blackjack_record) AS blackjack_total,
+                    (SELECT SUM(amount) FROM hancho_record) AS chohan_total
                 """)
         except Exception as e:
             print(f"❌ DB error: {e}")
