@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import re
 from datetime import datetime, timedelta
 
 import discord
@@ -22,9 +21,9 @@ DISSOKU_BOT_ID = 761562078095867916  # ディス速Bot
 DISBOARD_SUCCESS_TEXT = "表示順をアップしたよ"
 DISBOARD_COOLDOWN = 60 * 60 * 2  # 2時間
 
-# ディス速は「○○ をアップしたよ!」が成功例
-DISSOKU_COOLDOWN = 60 * 60 * 2  # 2時間
-DISSOKU_SUCCESS_RE = "をアップしたよ!"
+# ディス速は「○○ をアップしたよ!」が成功例（指定通りこれで判定）
+DISSOKU_COOLDOWN = 60 * 60 * 2  # 2時間（※ここはあなたの現状のまま）
+DISSOKU_SUCCESS_TEXT = "をアップしたよ!"
 DISSOKU_NG_WORDS = ("失敗", "間隔をあけてください", "間隔を開けてください")
 
 
@@ -35,18 +34,31 @@ class BumpListener(commands.Cog):
         self.scheduled_reminders: dict[tuple[int, str], tuple[asyncio.Task, int | None]] = {}
 
     # ===============================
+    # embed内テキスト（title + description）
+    # ===============================
+    def _embed_text(self, embed: discord.Embed) -> str:
+        title = embed.title or ""
+        desc = embed.description or ""
+        return f"{title}\n{desc}"
+
+    # ===============================
     # 成功判定
     # ===============================
     def _is_disboard_success(self, embed: discord.Embed) -> bool:
-        desc = embed.description or ""
-        return DISBOARD_SUCCESS_TEXT in desc
+        text = self._embed_text(embed)
+        return DISBOARD_SUCCESS_TEXT in text
 
     def _is_dissoku_success(self, embed: discord.Embed) -> bool:
-        desc = embed.description or ""
-        if not DISSOKU_SUCCESS_RE.search(desc):
+        text = self._embed_text(embed)
+
+        # 成功メッセージ判定（指定：完全一致テキストを含む）
+        if DISSOKU_SUCCESS_TEXT not in text:
             return False
-        if any(w in desc for w in DISSOKU_NG_WORDS):
+
+        # 失敗系ワード除外
+        if any(w in text for w in DISSOKU_NG_WORDS):
             return False
+
         return True
 
     # ===============================
@@ -58,6 +70,7 @@ class BumpListener(commands.Cog):
         if message.author.id not in (DISBOARD_BOT_ID, DISSOKU_BOT_ID):
             return
 
+        # embedが無いなら無視（「embed内だけ検知」方針）
         if not message.embeds:
             return
 
