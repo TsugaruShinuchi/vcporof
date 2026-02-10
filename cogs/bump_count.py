@@ -23,8 +23,8 @@ DISBOARD_SUCCESS_TEXT = "表示順をアップしたよ"
 DISBOARD_COOLDOWN = 60 * 60 * 2  # 2時間
 
 # ディス速は「○○ をアップしたよ!」が成功例
-DISSOKU_COOLDOWN = 60 * 60 * 1  # 1時間
-DISSOKU_SUCCESS_RE = re.compile(r"をアップしたよ", re.IGNORECASE)
+DISSOKU_COOLDOWN = 60 * 60 * 2  # 2時間
+DISSOKU_SUCCESS_RE = "をアップしたよ!"
 DISSOKU_NG_WORDS = ("失敗", "間隔をあけてください", "間隔を開けてください")
 
 
