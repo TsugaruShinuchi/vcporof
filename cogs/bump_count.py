@@ -50,17 +50,8 @@ class BumpListener(commands.Cog):
 
     def _is_dissoku_success(self, embed: discord.Embed) -> bool:
         text = self._embed_text(embed)
-
-        # 成功メッセージ判定（指定：完全一致テキストを含む）
-        if DISSOKU_SUCCESS_TEXT not in text:
-            return False
-
-        # 失敗系ワード除外
-        if any(w in text for w in DISSOKU_NG_WORDS):
-            return False
-
-        return True
-
+        return DISSOKU_SUCCESS_TEXT in text
+    
     # ===============================
     # BUMP / UP 検知
     # ===============================
