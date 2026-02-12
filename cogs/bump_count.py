@@ -23,11 +23,13 @@ DISBOARD_SUCCESS_TEXT = "表示順をアップしたよ"
 DISBOARD_COOLDOWN = 60 * 60 * 2  # 2時間
 
 # ディス速：画像だと「をアップしたよ！(全角)」なので両対応にする
-# ※「検知文字列は "をアップしたよ!"」と言われても、現物が全角なので現実に合わせる
 DISSOKU_COOLDOWN = 60 * 60 * 2  # 2時間（※ここはあなたの現状のまま）
 DISSOKU_SUCCESS_RE = re.compile(r"をアップしたよ[!！]")  # 半角/全角どっちでもOK
 DISSOKU_CMD_TEXT = "command: /up"  # 成功画面に出てるので利用（embed fields想定）
 DISSOKU_NG_WORDS = ("失敗", "間隔をあけてください", "間隔を開けてください")
+
+# 一時的なデバッグチャンネル（管理者だけ見える場所推奨）
+DEBUG_CHANNEL_ID = 1358395770386120742
 
 
 class BumpListener(commands.Cog):
@@ -35,6 +37,24 @@ class BumpListener(commands.Cog):
         self.bot = bot
         # (channel_id, provider) -> (task, user_id)
         self.scheduled_reminders: dict[tuple[int, str], tuple[asyncio.Task, int | None]] = {}
+
+    # ===============================
+    # デバッグ送信（方法3）
+    # ===============================
+    async def _debug_send(self, guild: discord.Guild | None, content: str):
+        if guild is None:
+            return
+        ch = guild.get_channel(DEBUG_CHANNEL_ID)
+        if ch is None:
+            return
+        try:
+            # Discordの2000文字制限を雑に回避
+            await ch.send(content[:1900])
+        except discord.Forbidden:
+            # 権限ないなら諦める
+            pass
+        except discord.HTTPException:
+            pass
 
     # ===============================
     # embed内テキスト（title + description + fields）
@@ -46,7 +66,6 @@ class BumpListener(commands.Cog):
         if embed.description:
             parts.append(embed.description)
 
-        # fields も見る（画像の command: /up がここに入ってる可能性が高い）
         for f in getattr(embed, "fields", []) or []:
             if f.name:
                 parts.append(str(f.name))
@@ -54,6 +73,22 @@ class BumpListener(commands.Cog):
                 parts.append(str(f.value))
 
         return "\n".join(parts)
+
+    def _embed_debug_dump(self, embed: discord.Embed) -> str:
+        # 見やすいように整形（fieldsも出す）
+        lines: list[str] = []
+        lines.append(f"title: {embed.title!r}")
+        lines.append(f"description: {embed.description!r}")
+
+        if embed.fields:
+            lines.append("fields:")
+            for i, f in enumerate(embed.fields, start=1):
+                lines.append(f"  [{i}] name={f.name!r}")
+                lines.append(f"      value={f.value!r}")
+        else:
+            lines.append("fields: (none)")
+
+        return "\n".join(lines)
 
     # ===============================
     # 成功判定
@@ -73,8 +108,7 @@ class BumpListener(commands.Cog):
         if not DISSOKU_SUCCESS_RE.search(text):
             return False
 
-        # 画像の成功画面にある command 行も見て精度UP（フィールドに入る想定）
-        # ※もし将来 command 行が消えたらここで取りこぼすので、その時は条件を緩めればOK
+        # 成功画面にある command 行（フィールド想定）
         if DISSOKU_CMD_TEXT not in text:
             return False
 
@@ -91,6 +125,14 @@ class BumpListener(commands.Cog):
 
         # embedが無いなら無視（「embed内だけ検知」方針）
         if not message.embeds:
+            # ディス速だけは「embed無し」も調査したいのでデバッグ送る（必要なら外してOK）
+            if message.author.id == DISSOKU_BOT_ID:
+                await self._debug_send(
+                    message.guild,
+                    "【DISSOKU DEBUG】embed無しでメッセージが来た\n"
+                    f"channel={getattr(message.channel, 'id', None)}\n"
+                    f"content={message.content!r}"
+                )
             return
 
         embed = message.embeds[0]
@@ -104,6 +146,23 @@ class BumpListener(commands.Cog):
             provider = "dissoku"
             cooldown = DISSOKU_COOLDOWN
             ok = self._is_dissoku_success(embed)
+
+        # ===== デバッグ（ディス速の判定材料を送る）=====
+        if provider == "dissoku":
+            text = self._embed_text(embed)
+            dump = self._embed_debug_dump(embed)
+            await self._debug_send(
+                message.guild,
+                "【DISSOKU DEBUG】判定ログ\n"
+                f"ok={ok}\n"
+                f"author_id={message.author.id}\n"
+                f"channel_id={message.channel.id}\n"
+                f"interaction_metadata={'yes' if getattr(message, 'interaction_metadata', None) else 'no'}\n\n"
+                "---- embed dump ----\n"
+                f"{dump}\n\n"
+                "---- embed_text (判定対象) ----\n"
+                f"{text}"
+            )
 
         if not ok:
             return
@@ -120,7 +179,6 @@ class BumpListener(commands.Cog):
         if user_id is not None:
             async with self.bot.db.acquire() as conn:
                 if provider == "dissoku":
-                    # up_amount(id, user_id UNIQUE, amount)
                     row = await conn.fetchrow(
                         """
                         INSERT INTO up_amount (user_id, amount)
@@ -132,7 +190,6 @@ class BumpListener(commands.Cog):
                         user_id
                     )
                 else:
-                    # bump_amount(user_id PK/UNIQUE, amount)
                     row = await conn.fetchrow(
                         """
                         INSERT INTO bump_amount (user_id, amount)
@@ -250,12 +307,9 @@ class BumpListener(commands.Cog):
             self.scheduled_reminders.pop(key, None)
 
     # ===============================
-    # /bumprank ギルドコマンド（DISBOARD）
+    # /bumprank（DISBOARD）
     # ===============================
-    @app_commands.command(
-        name="bumprank",
-        description="BUMP 回数ランキングを表示します（DISBOARD）"
-    )
+    @app_commands.command(name="bumprank", description="BUMP 回数ランキングを表示します（DISBOARD）")
     @app_commands.guild_only()
     async def bump_rank(self, interaction: discord.Interaction):
         user_id = interaction.user.id
@@ -286,10 +340,7 @@ class BumpListener(commands.Cog):
                 user_rank_row = await conn.fetchrow(
                     """
                     SELECT rank, amount FROM (
-                        SELECT
-                            user_id,
-                            amount,
-                            RANK() OVER (ORDER BY amount DESC) AS rank
+                        SELECT user_id, amount, RANK() OVER (ORDER BY amount DESC) AS rank
                         FROM bump_amount
                     ) t
                     WHERE user_id = $1;
@@ -326,12 +377,9 @@ class BumpListener(commands.Cog):
         await interaction.response.send_message(embed=embed)
 
     # ===============================
-    # /uprank ギルドコマンド（ディス速）
+    # /uprank（ディス速）
     # ===============================
-    @app_commands.command(
-        name="uprank",
-        description="UP 回数ランキングを表示します（ディス速）"
-    )
+    @app_commands.command(name="uprank", description="UP 回数ランキングを表示します（ディス速）")
     @app_commands.guild_only()
     async def up_rank(self, interaction: discord.Interaction):
         user_id = interaction.user.id
@@ -362,10 +410,7 @@ class BumpListener(commands.Cog):
                 user_rank_row = await conn.fetchrow(
                     """
                     SELECT rank, amount FROM (
-                        SELECT
-                            user_id,
-                            amount,
-                            RANK() OVER (ORDER BY amount DESC) AS rank
+                        SELECT user_id, amount, RANK() OVER (ORDER BY amount DESC) AS rank
                         FROM up_amount
                     ) t
                     WHERE user_id = $1;
