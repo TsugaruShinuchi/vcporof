@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from datetime import datetime, timedelta
 
 import discord
@@ -21,9 +22,11 @@ DISSOKU_BOT_ID = 761562078095867916  # ディス速Bot
 DISBOARD_SUCCESS_TEXT = "表示順をアップしたよ"
 DISBOARD_COOLDOWN = 60 * 60 * 2  # 2時間
 
-# ディス速は「○○ をアップしたよ!」が成功例（指定通りこれで判定）
+# ディス速：画像だと「をアップしたよ！(全角)」なので両対応にする
+# ※「検知文字列は "をアップしたよ!"」と言われても、現物が全角なので現実に合わせる
 DISSOKU_COOLDOWN = 60 * 60 * 2  # 2時間（※ここはあなたの現状のまま）
-DISSOKU_SUCCESS_TEXT = "をアップしたよ!"
+DISSOKU_SUCCESS_RE = re.compile(r"をアップしたよ[!！]")  # 半角/全角どっちでもOK
+DISSOKU_CMD_TEXT = "command: /up"  # 成功画面に出てるので利用（embed fields想定）
 DISSOKU_NG_WORDS = ("失敗", "間隔をあけてください", "間隔を開けてください")
 
 
@@ -34,12 +37,23 @@ class BumpListener(commands.Cog):
         self.scheduled_reminders: dict[tuple[int, str], tuple[asyncio.Task, int | None]] = {}
 
     # ===============================
-    # embed内テキスト（title + description）
+    # embed内テキスト（title + description + fields）
     # ===============================
     def _embed_text(self, embed: discord.Embed) -> str:
-        title = embed.title or ""
-        desc = embed.description or ""
-        return f"{title}\n{desc}"
+        parts: list[str] = []
+        if embed.title:
+            parts.append(embed.title)
+        if embed.description:
+            parts.append(embed.description)
+
+        # fields も見る（画像の command: /up がここに入ってる可能性が高い）
+        for f in getattr(embed, "fields", []) or []:
+            if f.name:
+                parts.append(str(f.name))
+            if f.value:
+                parts.append(str(f.value))
+
+        return "\n".join(parts)
 
     # ===============================
     # 成功判定
@@ -50,8 +64,22 @@ class BumpListener(commands.Cog):
 
     def _is_dissoku_success(self, embed: discord.Embed) -> bool:
         text = self._embed_text(embed)
-        return DISSOKU_SUCCESS_TEXT in text
-    
+
+        # 失敗系ワード除外
+        if any(w in text for w in DISSOKU_NG_WORDS):
+            return False
+
+        # 成功文言（半角/全角の!対応）
+        if not DISSOKU_SUCCESS_RE.search(text):
+            return False
+
+        # 画像の成功画面にある command 行も見て精度UP（フィールドに入る想定）
+        # ※もし将来 command 行が消えたらここで取りこぼすので、その時は条件を緩めればOK
+        if DISSOKU_CMD_TEXT not in text:
+            return False
+
+        return True
+
     # ===============================
     # BUMP / UP 検知
     # ===============================
@@ -270,7 +298,6 @@ class BumpListener(commands.Cog):
                 )
 
         lines: list[str] = []
-
         for i, row in enumerate(top_rows, start=1):
             member = guild.get_member(row["user_id"]) if guild else None
             if member:
@@ -279,13 +306,11 @@ class BumpListener(commands.Cog):
             else:
                 name = "不明な冒険者"
                 mention = f"<@{row['user_id']}>"
-
             lines.append(f"**{i}.** {name}（{mention}） ― `{row['amount']}` 回")
 
         if user_rank_row:
             member = guild.get_member(user_id)
             name = member.display_name if member else interaction.user.name
-
             lines.append("\n――――――――――")
             lines.append(
                 f"**あなたの順位：{user_rank_row['rank']} 位**\n"
@@ -298,7 +323,6 @@ class BumpListener(commands.Cog):
             color=discord.Color.gold(),
             timestamp=datetime.utcnow()
         )
-
         await interaction.response.send_message(embed=embed)
 
     # ===============================
@@ -350,7 +374,6 @@ class BumpListener(commands.Cog):
                 )
 
         lines: list[str] = []
-
         for i, row in enumerate(top_rows, start=1):
             member = guild.get_member(row["user_id"]) if guild else None
             if member:
@@ -359,13 +382,11 @@ class BumpListener(commands.Cog):
             else:
                 name = "不明な冒険者"
                 mention = f"<@{row['user_id']}>"
-
             lines.append(f"**{i}.** {name}（{mention}） ― `{row['amount']}` 回")
 
         if user_rank_row:
             member = guild.get_member(user_id)
             name = member.display_name if member else interaction.user.name
-
             lines.append("\n――――――――――")
             lines.append(
                 f"**あなたの順位：{user_rank_row['rank']} 位**\n"
@@ -378,7 +399,6 @@ class BumpListener(commands.Cog):
             color=discord.Color.gold(),
             timestamp=datetime.utcnow()
         )
-
         await interaction.response.send_message(embed=embed)
 
 
