@@ -25,7 +25,6 @@ DISBOARD_COOLDOWN = 60 * 60 * 2  # 2時間
 # ディス速：画像だと「をアップしたよ！(全角)」なので両対応にする
 DISSOKU_COOLDOWN = 60 * 60 * 2  # 2時間（※ここはあなたの現状のまま）
 DISSOKU_SUCCESS_RE = re.compile(r"をアップしたよ[!！]")  # 半角/全角どっちでもOK
-DISSOKU_CMD_TEXT = "command: /up"  # 成功画面に出てるので利用（embed fields想定）
 DISSOKU_NG_WORDS = ("失敗", "間隔をあけてください", "間隔を開けてください")
 
 # 一時的なデバッグチャンネル（管理者だけ見える場所推奨）
@@ -58,8 +57,10 @@ class BumpListener(commands.Cog):
 
     def _cleanup_processed(self):
         now = datetime.utcnow()
-        dead = [mid for mid, t in self.processed_message_ids.items()
-                if (now - t).total_seconds() > self._processed_ttl_sec]
+        dead = [
+            mid for mid, t in self.processed_message_ids.items()
+            if (now - t).total_seconds() > self._processed_ttl_sec
+        ]
         for mid in dead:
             self.processed_message_ids.pop(mid, None)
 
@@ -97,7 +98,6 @@ class BumpListener(commands.Cog):
         return "\n".join(lines)
 
     def _message_components_dump(self, message: discord.Message) -> str:
-        # できる範囲で “何か付いてるか” を覗く（ボタンとか）
         rows = []
         for row in (message.components or []):
             children = []
@@ -124,16 +124,15 @@ class BumpListener(commands.Cog):
     def _is_dissoku_success(self, embed: discord.Embed) -> bool:
         text = self._embed_text(embed)
 
+        # 失敗系ワード除外
         if any(w in text for w in DISSOKU_NG_WORDS):
             return False
 
+        # 成功文言（半角/全角の!対応）
         if not DISSOKU_SUCCESS_RE.search(text):
             return False
 
-        # これが原因で取りこぼす可能性もある。まずは現物重視で必須にしてる。
-        if DISSOKU_CMD_TEXT not in text:
-            return False
-
+        # A案：command 条件は削除（表記揺れで取りこぼすだけ）
         return True
 
     # ===============================
@@ -242,7 +241,6 @@ class BumpListener(commands.Cog):
                 )
             return
 
-        # embed有り
         embed = message.embeds[0]
         ok = self._is_disboard_success(embed) if provider == "disboard" else self._is_dissoku_success(embed)
 
@@ -271,11 +269,9 @@ class BumpListener(commands.Cog):
     # ===============================
     @commands.Cog.listener()
     async def on_message_edit(self, before: discord.Message, after: discord.Message):
-        # ディス速だけ監視（DISBOARDは基本編集しない想定）
         if after.author.id != DISSOKU_BOT_ID:
             return
 
-        # afterにembedが付いたら、ここが勝ち筋
         if not after.embeds:
             return
 
@@ -386,7 +382,6 @@ class BumpListener(commands.Cog):
                 timestamp=datetime.utcnow()
             )
             embed.set_footer(text=footer)
-
             await channel.send(embed=embed)
 
         finally:
