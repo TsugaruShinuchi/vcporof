@@ -261,8 +261,9 @@ class ComplaintCog(commands.Cog):
     async def complaint_form(self, interaction: discord.Interaction) -> None:
         embed = build_form_embed()
         view = ComplaintEntryView(bot=self.bot)  # 送信時にも付ける
-        await interaction.response.send_message(embed=embed, view=view)
-
+        
+        await interaction.response.send_message("設置完了。", ephemeral=True)
+        await interaction.channel.send(embed=embed, view=view)
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(ComplaintCog(bot))
