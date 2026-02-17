@@ -87,7 +87,7 @@ class VCCounter(commands.Cog):
 
     @app_commands.guilds(discord.Object(id=int(os.getenv("GUILD_ID"))))
     @app_commands.command(name="人数更新", description="人数を手動更新します（管理者限定）")
-    @app_commands.checks.has_permissions(administrator=True)
+    @app_commands.default_permissions(administrator=True)
     async def update_vc_command(self, interaction: discord.Interaction):
         await interaction.response.defer(thinking=True)
         await self._update(interaction.guild)

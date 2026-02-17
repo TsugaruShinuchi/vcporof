@@ -62,7 +62,7 @@ class GachaCog(commands.Cog):
     # /ガチャ
     # ------------------------------
     @app_commands.command(name="ガチャ", description="ボイメガチャを表示")
-    @app_commands.checks.has_permissions(administrator=True)
+    @app_commands.default_permissions(administrator=True)
     async def gacha(self, interaction: discord.Interaction):
         embed = discord.Embed(
             title="ボイメガチャ🎙",

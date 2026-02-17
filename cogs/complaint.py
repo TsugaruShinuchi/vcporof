@@ -258,6 +258,7 @@ class ComplaintCog(commands.Cog):
         )
 
     @app_commands.command(name="名指し苦情フォーム", description="苦情フォーム（ボタン）を投稿します")
+    @app_commands.default_permissions(administrator=True)
     async def complaint_form(self, interaction: discord.Interaction) -> None:
         embed = build_form_embed()
         view = ComplaintEntryView(bot=self.bot)  # 送信時にも付ける
