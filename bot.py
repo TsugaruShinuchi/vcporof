@@ -31,7 +31,8 @@ class MyBot(commands.Bot):
             "cogs.encount",
             "cogs.bump_count",
             "cogs.gacha",
-            "cogs.vc_counter"
+            "cogs.vc_counter",
+            "cogs.complaint"
         ]
         for ext in initial_extensions:
             await self.load_extension(ext)
