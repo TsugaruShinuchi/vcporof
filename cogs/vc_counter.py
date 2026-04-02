@@ -33,7 +33,7 @@ class VCCounter(commands.Cog):
                         SELECT
                         (SELECT COUNT(*) FROM matching_choose) AS matching_total,
                         (SELECT COUNT(*) FROM matching_choose WHERE "check" = 1) AS matching_kotsu,
-                        (SELECT COUNT(*) FROM gacha_log) AS gacha_total,
+                        (SELECT COUNT(*) FROM gacha_log) AS gacha_total
                     """)
                     #     (SELECT SUM(amount) FROM blackjack_record) AS blackjack_total,
                     #     (SELECT SUM(amount) FROM hancho_record) AS chohan_total
@@ -44,7 +44,7 @@ class VCCounter(commands.Cog):
                     SELECT
                     (SELECT COUNT(*) FROM matching_choose) AS matching_total,
                     (SELECT COUNT(*) FROM matching_choose WHERE "check" = 1) AS matching_kotsu,
-                    (SELECT COUNT(*) FROM gacha_log) AS gacha_total,
+                    (SELECT COUNT(*) FROM gacha_log) AS gacha_total
                 """)
                 #     (SELECT SUM(amount) FROM blackjack_record) AS blackjack_total,
                 #     (SELECT SUM(amount) FROM hancho_record) AS chohan_total
